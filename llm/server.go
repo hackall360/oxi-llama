@@ -974,6 +974,31 @@ nextLayer:
 
 // assignLayers packs the maximum number of layers onto the smallest set of GPUs and comes up with a layer assignment
 func assignLayers(layers []uint64, gpus discover.GpuInfoList, requestedLayers int, lastUsedGPU int) (gpuLayers ml.GPULayersList) {
+	// Adjust GPU free memory by relative compute capability so that more
+	// powerful GPUs receive a larger portion of the workload. Compute
+	// capability is parsed from the GPU information and normalized to the
+	// most capable device.
+	if len(gpus) > 0 {
+		scores := make([]float64, len(gpus))
+		maxScore := 0.0
+		for i, g := range gpus {
+			scores[i] = gpuComputeScore(g)
+			if scores[i] > maxScore {
+				maxScore = scores[i]
+			}
+		}
+		if maxScore > 0 {
+			for i := range gpus {
+				// scale between 50% and 100% of available memory
+				factor := 0.5
+				if scores[i] > 0 {
+					factor += 0.5 * (scores[i] / maxScore)
+				}
+				gpus[i].FreeMemory = uint64(float64(gpus[i].FreeMemory) * factor)
+			}
+		}
+	}
+
 	// If we can't fit everything then prefer offloading layers other than the output layer
 	for range 2 {
 		// requestedLayers may be -1 if nothing was requested
@@ -1002,6 +1027,24 @@ func assignLayers(layers []uint64, gpus discover.GpuInfoList, requestedLayers in
 	}
 
 	return gpuLayers
+}
+
+// gpuComputeScore attempts to parse a numeric compute capability from the GPU
+// info. It supports plain floats like "8.6" as well as strings prefixed with
+// "gfx". If parsing fails, zero is returned.
+func gpuComputeScore(g discover.GpuInfo) float64 {
+	if g.Compute == "" {
+		return 0
+	}
+	if v, err := strconv.ParseFloat(g.Compute, 64); err == nil {
+		return v
+	}
+	if strings.HasPrefix(g.Compute, "gfx") {
+		if n, err := strconv.Atoi(strings.TrimPrefix(g.Compute, "gfx")); err == nil {
+			return float64(n)
+		}
+	}
+	return 0
 }
 
 // findBestFit binary searches to find the smallest capacity factor that can fit

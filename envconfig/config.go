@@ -149,6 +149,24 @@ func Bool(k string) func() bool {
 	}
 }
 
+// BoolDefault returns the value of the environment variable as a bool.
+// If the variable is unset or cannot be parsed, it returns the provided
+// default value.
+func BoolDefault(k string, def bool) func() bool {
+	return func() bool {
+		if s := Var(k); s != "" {
+			b, err := strconv.ParseBool(s)
+			if err != nil {
+				return true
+			}
+
+			return b
+		}
+
+		return def
+	}
+}
+
 // LogLevel returns the log level for the application.
 // Values are 0 or false INFO (Default), 1 or true DEBUG, 2 TRACE
 func LogLevel() slog.Level {
@@ -174,7 +192,8 @@ var (
 	// NoPrune disables pruning of model blobs on startup.
 	NoPrune = Bool("OLLAMA_NOPRUNE")
 	// SchedSpread allows scheduling models across all GPUs.
-	SchedSpread = Bool("OLLAMA_SCHED_SPREAD")
+	// Default to true so available GPUs are utilized by default.
+	SchedSpread = BoolDefault("OLLAMA_SCHED_SPREAD", true)
 	// IntelGPU enables experimental Intel GPU detection.
 	IntelGPU = Bool("OLLAMA_INTEL_GPU")
 	// MultiUserCache optimizes prompt caching for multi-user scenarios
