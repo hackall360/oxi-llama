@@ -1,0 +1,8 @@
+[package]
+name = "discover"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cfg-if = "1.0"
+sysinfo = { version = "0.30", default-features = false }
