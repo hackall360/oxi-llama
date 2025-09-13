@@ -2,6 +2,8 @@ use axum::{routing::{post, delete}, Router, Json, extract::State};
 use std::sync::Arc;
 use serde_json::{json, Value};
 use api::{CreateRequest, GenerateRequest, DeleteRequest, GenerateResponse};
+use convert::{convert_model, ModelFormat};
+use std::path::Path;
 #[derive(Clone, Default)]
 pub struct AppState {
     // placeholder for shared state like DB, model, etc.
@@ -16,8 +18,8 @@ pub fn app() -> Router<Arc<AppState>> {
         .with_state(state)
 }
 
-pub async fn create_handler(State(_state): State<Arc<AppState>>, Json(_req): Json<CreateRequest>) -> Json<Value> {
-    // In real implementation, models would be stored and processed.
+pub async fn create_handler(State(_state): State<Arc<AppState>>, Json(req): Json<CreateRequest>) -> Json<Value> {
+    let _ = convert_model(Path::new(&req.model), Path::new("model.bin"), ModelFormat::LLaMA);
     Json(json!({"status": "ok"}))
 }
 

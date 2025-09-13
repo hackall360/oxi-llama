@@ -4,6 +4,7 @@ use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 
 pub use envconfig;
+use convert::{convert_model, ModelFormat};
 
 #[derive(Parser)]
 #[command(name = "ollama", about = "Rust reimplementation of the Ollama CLI")]
@@ -66,7 +67,8 @@ fn create_handler(model: String, file: Option<PathBuf>) -> Result<()> {
     if !filename.exists() {
         bail!("specified Modelfile wasn't found");
     }
-    // Placeholder for actual model creation logic
+    // Invoke the Rust converter stub
+    convert_model(&filename, PathBuf::from("model.bin"), ModelFormat::LLaMA)?;
     println!("creating model {model} from {:?}", filename);
     Ok(())
 }
