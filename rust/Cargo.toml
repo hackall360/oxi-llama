@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 envconfig = { path = "envconfig" }
 readline = { path = "readline" }
+kvcache = { path = "kvcache" }
 
 [build-dependencies]
 cc = "1.0"
