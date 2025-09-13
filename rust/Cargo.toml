@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 envconfig = { path = "envconfig" }
+readline = { path = "readline" }
 
 [build-dependencies]
 cc = "1.0"
