@@ -17,6 +17,7 @@ package llama
 #include "mtmd.h"
 #include "mtmd-helper.h"
 #include "gguf.h"
+#include "ggml-backend.h"
 
 #include "sampling_ext.h"
 
@@ -60,6 +61,73 @@ func llamaLog(level C.int, text *C.char, _ unsafe.Pointer) {
 func BackendInit() {
 	ggml.OnceLoad()
 	C.llama_backend_init()
+}
+
+type DeviceInfo struct {
+	ID          string
+	Name        string
+	Description string
+	TotalMemory uint64
+	FreeMemory  uint64
+}
+
+// GPUDevices returns information about all detected GPU devices.
+// The function queries the ggml backend for device properties so that
+// scheduling decisions can take device capabilities and memory into account.
+func GPUDevices() []DeviceInfo {
+	var devices []DeviceInfo
+
+	for i := range C.ggml_backend_dev_count() {
+		dev := C.ggml_backend_dev_get(i)
+		if C.ggml_backend_dev_type(dev) != C.GGML_BACKEND_DEVICE_TYPE_GPU {
+			continue
+		}
+
+		var props C.struct_ggml_backend_dev_props
+		C.ggml_backend_dev_get_props(dev, &props)
+		devices = append(devices, DeviceInfo{
+			ID:          C.GoString(props.id),
+			Name:        C.GoString(props.name),
+			Description: C.GoString(props.description),
+			TotalMemory: uint64(props.memory_total),
+			FreeMemory:  uint64(props.memory_free),
+		})
+	}
+
+	return devices
+}
+
+// DefaultTensorSplit returns a tensor split based on the free memory of all
+// detected GPUs. The split is expressed as fractions that sum to 1.0 and can be
+// passed directly to the llama backend. The index of the GPU with the most
+// available memory is also returned to be used as the main GPU.
+func DefaultTensorSplit() ([]float32, int) {
+	devices := GPUDevices()
+	if len(devices) == 0 {
+		return nil, 0
+	}
+
+	split := make([]float32, len(devices))
+	var total uint64
+	best := 0
+	for i, d := range devices {
+		total += d.FreeMemory
+		if d.FreeMemory > devices[best].FreeMemory {
+			best = i
+		}
+	}
+
+	if total == 0 {
+		for i := range split {
+			split[i] = 1.0 / float32(len(split))
+		}
+	} else {
+		for i, d := range devices {
+			split[i] = float32(d.FreeMemory) / float32(total)
+		}
+	}
+
+	return split, best
 }
 
 func EnumerateGPUs() []string {

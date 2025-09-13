@@ -810,11 +810,26 @@ func (s *Server) load(w http.ResponseWriter, r *http.Request) {
 		gpuIDs := llama.EnumerateGPUs()
 		tensorSplit := make([]float32, len(gpuIDs))
 		numGPU := 0
-		for i := range gpuIDs {
-			for _, layers := range req.GPULayers {
-				if gpuIDs[i] == layers.ID {
-					tensorSplit[i] = float32(len(layers.Layers))
-					numGPU += len(layers.Layers)
+
+		if len(req.GPULayers) == 0 {
+			// No explicit GPU layout provided - use all detected GPUs and
+			// split layers proportionally to available memory.
+			if split, main := llama.DefaultTensorSplit(); len(split) > 0 {
+				copy(tensorSplit, split)
+				if req.MainGPU == 0 && main < len(gpuIDs) {
+					req.MainGPU = main
+				}
+				// Offload as many layers as possible. The llama backend
+				// will clamp this to the model's layer count.
+				numGPU = 999
+			}
+		} else {
+			for i := range gpuIDs {
+				for _, layers := range req.GPULayers {
+					if gpuIDs[i] == layers.ID {
+						tensorSplit[i] = float32(len(layers.Layers))
+						numGPU += len(layers.Layers)
+					}
 				}
 			}
 		}
