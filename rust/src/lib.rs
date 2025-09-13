@@ -1,5 +1,8 @@
 pub use envconfig;
 
+pub mod format;
+pub use format::{format_bytes, format_time};
+
 extern "C" {
     fn hello_from_c() -> i32;
 }
