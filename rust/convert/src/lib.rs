@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::Result;
+use fs::gguf::GgufFile;
 
 pub mod tokenizer;
 
@@ -49,7 +50,16 @@ pub struct Tensor {
 
 /// Convert a model in a given format.  This is currently a stub that simply
 /// validates input paths and returns success.
-pub fn convert_model<S: AsRef<Path>, D: AsRef<Path>>(src: S, dst: D, _format: ModelFormat) -> Result<()> {
-    let _ = (src.as_ref(), dst.as_ref());
+pub fn convert_model<S: AsRef<Path>, D: AsRef<Path>>(
+    src: S,
+    dst: D,
+    _format: ModelFormat,
+) -> Result<()> {
+    let _ = dst.as_ref();
+    if src.as_ref().is_file() {
+        // Attempt to open the source as a GGUF file to exercise the reader. Any
+        // error is ignored since conversion logic is not yet implemented.
+        let _ = GgufFile::open(src.as_ref());
+    }
     Ok(())
 }

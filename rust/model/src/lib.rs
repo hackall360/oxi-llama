@@ -12,6 +12,7 @@ pub use vocabulary::{
     TOKEN_TYPE_UNKNOWN, TOKEN_TYPE_UNUSED, TOKEN_TYPE_USER_DEFINED,
 };
 
+use fs::config::config_dir;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -34,6 +35,11 @@ pub fn parse_tags(s: &str) -> Tag {
         name,
         alternate: alt,
     }
+}
+
+/// Return the default directory used to load model configuration.
+pub fn default_config_path() -> std::path::PathBuf {
+    config_dir()
 }
 
 pub trait Model: Send + Sync {}
