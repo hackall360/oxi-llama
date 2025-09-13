@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 
+pub use envconfig;
+
 #[derive(Parser)]
 #[command(name = "ollama", about = "Rust reimplementation of the Ollama CLI")]
 pub struct Cli {

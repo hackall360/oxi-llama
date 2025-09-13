@@ -1,3 +1,5 @@
+pub use envconfig;
+
 extern "C" {
     fn hello_from_c() -> i32;
 }
