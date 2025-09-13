@@ -164,12 +164,12 @@ impl<'de> Deserialize<'de> for PropertyType {
 }
 
 // ------------ Tool related ------------
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolCall {
     pub function: ToolCallFunction,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolCallFunction {
     #[serde(default)]
     pub index: Option<i32>,
@@ -264,7 +264,7 @@ pub struct ToolProperty {
 }
 
 // ------------ Message ------------
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Default, PartialEq)]
 pub struct Message {
     pub role: String,
     pub content: String,
