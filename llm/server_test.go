@@ -18,6 +18,7 @@ func TestLLMServerFitGPU(t *testing.T) {
 	type gpu struct {
 		library string
 		free    int
+		compute string
 	}
 
 	tests := []struct {
@@ -92,6 +93,13 @@ func TestLLMServerFitGPU(t *testing.T) {
 			expected: ml.GPULayersList{{ID: "gpu1", Layers: []int{1}}},
 		},
 		{
+			name:     "Multi GPU compute weighted",
+			gpus:     []gpu{{free: 200 * format.MebiByte, compute: "5"}, {free: 200 * format.MebiByte, compute: "1"}},
+			layers:   []int{100 * format.MebiByte, 100 * format.MebiByte, 100 * format.MebiByte},
+			numGPU:   -1,
+			expected: ml.GPULayersList{{ID: "gpu0", Layers: []int{0, 1}}, {ID: "gpu1", Layers: []int{2}}},
+		},
+		{
 			name:     "Multi GPU numGPU 1",
 			gpus:     []gpu{{free: 128 * format.MebiByte}, {free: 256 * format.MebiByte}},
 			layers:   []int{50 * format.MebiByte, 50 * format.MebiByte, 50 * format.MebiByte},
@@ -129,6 +137,8 @@ func TestLLMServerFitGPU(t *testing.T) {
 		},
 	}
 
+	t.Setenv("OLLAMA_SCHED_SPREAD", "false")
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var systemInfo discover.SystemInfo
@@ -141,6 +151,7 @@ func TestLLMServerFitGPU(t *testing.T) {
 				gpus[i].ID = fmt.Sprintf("gpu%d", i)
 				gpus[i].Library = tt.gpus[i].library
 				gpus[i].FreeMemory = uint64(tt.gpus[i].free)
+				gpus[i].Compute = tt.gpus[i].compute
 			}
 
 			s := &ollamaServer{
