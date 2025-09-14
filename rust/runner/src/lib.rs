@@ -21,5 +21,20 @@ pub trait KvCache {
 
 /// Trait representing multimodal processing such as vision features.
 pub trait MultimodalSupport {
-    fn embed_image(&self, data: &[u8]) -> Vec<f32>;
+    /// Generate embeddings for an image. Implementations may return one or
+    /// more embeddings depending on the underlying model.
+    fn embed_image(&mut self, data: &[u8]) -> Result<Vec<Vec<f32>>, Box<dyn Error>>;
+
+    /// Determine the batch size to use for embedding processing. The default
+    /// implementation simply returns the configured batch size which mirrors
+    /// the behaviour of the Go runner.
+    fn batch_size(&self, configured_batch_size: usize) -> usize {
+        configured_batch_size
+    }
+
+    /// Size of a single embedding vector. Not all tests require this value so
+    /// a default implementation returning `0` is provided.
+    fn embed_size(&self) -> usize {
+        0
+    }
 }
