@@ -8,4 +8,5 @@ kvcache = { path = "../kvcache" }
 
 [build-dependencies]
 cc = "1.0"
+bindgen = "0.69"
 
