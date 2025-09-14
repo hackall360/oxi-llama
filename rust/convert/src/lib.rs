@@ -4,8 +4,12 @@ use anyhow::Result;
 use fs::gguf::GgufFile;
 
 pub mod tokenizer;
+pub mod tensor;
+pub mod reader;
 
 pub use tokenizer::{parse_tokenizer, SpecialVocabulary, Tokenizer, Vocabulary};
+pub use tensor::{Tensor, TensorKind, Repacker, BaseTensor};
+pub use reader::{ModelReader, ModelWriter, FsReader, VecWriter};
 
 /// Enumeration of model formats supported by the converter.
 #[derive(Debug, Clone)]
@@ -30,25 +34,7 @@ pub enum ModelFormat {
     Unknown,
 }
 
-/// Trait representing a source of tensors.
-pub trait ModelReader {
-    fn read(&mut self, name: &str) -> Result<Tensor>;
-}
-
-/// Trait representing a sink for tensors.
-pub trait ModelWriter {
-    fn write(&mut self, tensor: &Tensor) -> Result<()>;
-}
-
-/// Basic tensor representation used by the converter.
-#[derive(Debug, Clone)]
-pub struct Tensor {
-    pub name: String,
-    pub shape: Vec<usize>,
-    pub dtype: String,
-}
-
-/// Convert a model in a given format.  This is currently a stub that simply
+/// Convert a model in a given format. This is currently a stub that simply
 /// validates input paths and returns success.
 pub fn convert_model<S: AsRef<Path>, D: AsRef<Path>>(
     src: S,
