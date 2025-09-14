@@ -3,6 +3,8 @@ use ollama_types::model::{
     is_valid_namespace, parse_name, parse_name_bare, parse_name_from_filepath, Name,
 };
 
+const PART80: &str = "88888888888888888888888888888888888888888888888888888888888888888888888888888888";
+
 fn join(parts: &[&str]) -> PathBuf {
     let mut pb = PathBuf::new();
     for p in parts {
@@ -13,14 +15,15 @@ fn join(parts: &[&str]) -> PathBuf {
 
 #[test]
 fn parse_name_parts() {
-    struct Case<'a> {
-        input: &'a str,
+    let part350 = "3".repeat(350);
+    struct Case {
+        input: String,
         want: Name,
         filepath: PathBuf,
     }
     let cases = vec![
         Case {
-            input: "registry.ollama.ai/library/dolphin-mistral:7b-v2.6-dpo-laser-q6_K",
+            input: "registry.ollama.ai/library/dolphin-mistral:7b-v2.6-dpo-laser-q6_K".into(),
             want: Name {
                 host: "registry.ollama.ai".into(),
                 namespace: "library".into(),
@@ -35,7 +38,7 @@ fn parse_name_parts() {
             ]),
         },
         Case {
-            input: "scheme://host:port/namespace/model:tag",
+            input: "scheme://host:port/namespace/model:tag".into(),
             want: Name {
                 host: "host:port".into(),
                 namespace: "namespace".into(),
@@ -45,7 +48,7 @@ fn parse_name_parts() {
             filepath: join(&["host:port", "namespace", "model", "tag"]),
         },
         Case {
-            input: "host/namespace/model:tag",
+            input: "host/namespace/model:tag".into(),
             want: Name {
                 host: "host".into(),
                 namespace: "namespace".into(),
@@ -55,7 +58,7 @@ fn parse_name_parts() {
             filepath: join(&["host", "namespace", "model", "tag"]),
         },
         Case {
-            input: "host/namespace/model",
+            input: "host/namespace/model".into(),
             want: Name {
                 host: "host".into(),
                 namespace: "namespace".into(),
@@ -65,7 +68,7 @@ fn parse_name_parts() {
             filepath: join(&["host", "namespace", "model", "latest"]),
         },
         Case {
-            input: "namespace/model",
+            input: "namespace/model".into(),
             want: Name {
                 host: String::new(),
                 namespace: "namespace".into(),
@@ -75,7 +78,7 @@ fn parse_name_parts() {
             filepath: join(&["registry.ollama.ai", "namespace", "model", "latest"]),
         },
         Case {
-            input: "model",
+            input: "model".into(),
             want: Name {
                 host: String::new(),
                 namespace: String::new(),
@@ -84,12 +87,32 @@ fn parse_name_parts() {
             },
             filepath: join(&["registry.ollama.ai", "library", "model", "latest"]),
         },
+        Case {
+            input: format!("{PART80}/{PART80}/{PART80}:{PART80}"),
+            want: Name {
+                host: PART80.into(),
+                namespace: PART80.into(),
+                model: PART80.into(),
+                tag: PART80.into(),
+            },
+            filepath: join(&[PART80, PART80, PART80, PART80]),
+        },
+        Case {
+            input: format!("{part350}/{PART80}/{PART80}:{PART80}"),
+            want: Name {
+                host: part350.clone(),
+                namespace: PART80.into(),
+                model: PART80.into(),
+                tag: PART80.into(),
+            },
+            filepath: join(&[part350.as_str(), PART80, PART80, PART80]),
+        },
     ];
 
     for case in cases {
-        let got = parse_name_bare(case.input);
+        let got = parse_name_bare(&case.input);
         assert_eq!(got, case.want, "parse_name_bare {}", case.input);
-        let merged = parse_name(case.input);
+        let merged = parse_name(&case.input);
         assert_eq!(merged.filepath(), case.filepath, "filepath for {}", case.input);
     }
 }
@@ -146,4 +169,59 @@ fn is_valid_namespace_cases() {
     for (input, expected) in cases {
         assert_eq!(is_valid_namespace(input), expected, "{}", input);
     }
+}
+
+#[test]
+fn parse_name_default() {
+    let n = parse_name("xx");
+    assert_eq!(n.to_string(), "registry.ollama.ai/library/xx:latest");
+}
+
+#[test]
+fn name_is_valid() {
+    let part350 = "3".repeat(350);
+    let test_cases: Vec<(String, bool)> = vec![
+        ("".into(), false),
+        ("_why/_the/_lucky:_stiff".into(), true),
+        ("h/n/m:t".into(), true),
+        ("host/namespace/model:tag".into(), true),
+        ("host/namespace/model".into(), false),
+        ("namespace/model".into(), false),
+        ("model".into(), false),
+        (format!("{PART80}/{PART80}/{PART80}:{PART80}"), true),
+        (format!("{part350}/{PART80}/{PART80}:{PART80}"), true),
+        ("h/nn/mm:t".into(), true),
+        ("m".into(), false),
+        ("n/m:".into(), false),
+        ("h/n/m".into(), false),
+        ("@t".into(), false),
+        ("m@d".into(), false),
+        ("^".into(), false),
+        ("mm:".into(), false),
+        ("/nn/mm".into(), false),
+        ("//".into(), false),
+        ("//mm".into(), false),
+        ("hh//".into(), false),
+        ("//mm:@".into(), false),
+        ("00@".into(), false),
+        ("@".into(), false),
+        ("-hh/nn/mm:tt".into(), false),
+        ("hh/-nn/mm:tt".into(), false),
+        ("hh/nn/-mm:tt".into(), false),
+        ("hh/nn/mm:-tt".into(), false),
+        ("host:https/namespace/model:tag".into(), true),
+        ("host/name:space/model:tag".into(), false),
+    ];
+
+    let mut tested_string = false;
+    for (s, want) in test_cases {
+        let n = parse_name_bare(&s);
+        let got = n.is_valid();
+        assert_eq!(got, want, "is_valid {}", s);
+        if got {
+            assert_eq!(parse_name_bare(&s).to_string(), s);
+            tested_string = true;
+        }
+    }
+    assert!(tested_string, "no tests for Name::to_string");
 }
