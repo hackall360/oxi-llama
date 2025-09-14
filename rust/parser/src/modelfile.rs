@@ -132,7 +132,7 @@ where
 {
     if first.starts_with("\"\"\"") {
         let mut acc = String::new();
-        let mut rest = &first[3..];
+        let rest = &first[3..];
         if let Some(idx) = rest.find("\"\"\"") {
             acc.push_str(&rest[..idx]);
             return Ok(acc);
@@ -140,7 +140,7 @@ where
         acc.push_str(rest);
         acc.push('\n');
         while let Some(line) = lines.next() {
-            let mut line = line?;
+            let line = line?;
             if let Some(idx) = line.find("\"\"\"") {
                 acc.push_str(&line[..idx]);
                 return Ok(acc);
@@ -173,28 +173,38 @@ pub fn expand_path<P: AsRef<Path>, Q: AsRef<Path>>(path: P, relative_dir: Q) -> 
     })
 }
 
-fn expand_path_impl<F, G>(path: &Path, relative_dir: &Path, current_home: F, lookup_home: G) -> Result<PathBuf>
+pub(crate) fn expand_path_impl<F, G>(path: &Path, relative_dir: &Path, current_home: F, lookup_home: G) -> Result<PathBuf>
 where
     F: Fn() -> Result<PathBuf>,
     G: Fn(&str) -> Result<PathBuf>,
 {
-    let path_str = path.to_string_lossy();
-    let result = if path_str.starts_with('/') || path_str.starts_with('\\') {
-        PathBuf::from(path_str.into_owned())
+    let path_str = path.to_string_lossy().to_string();
+    let result = if path.is_absolute() {
+        PathBuf::from(&path_str)
     } else if path_str.starts_with('~') {
-        let mut parts = path_str[1..].splitn(2, '/');
-        let user_part = parts.next().unwrap();
+        let rest = &path_str[1..];
+        let sep_idx = rest.find(|c| c == '/' || c == '\\');
+        let (user_part, remaining) = match sep_idx {
+            Some(i) => (&rest[..i], &rest[i+1..]),
+            None => (rest, ""),
+        };
         if user_part.is_empty() {
             let home = current_home()?;
-            let rest = parts.next().unwrap_or("");
-            Path::new(&home).join(rest)
+            Path::new(&home).join(remaining)
         } else {
             let home = lookup_home(user_part)?;
-            let rest = parts.next().unwrap_or("");
-            Path::new(&home).join(rest)
+            Path::new(&home).join(remaining)
         }
     } else {
-        relative_dir.join(path)
+        let base = if relative_dir.as_os_str().is_empty() {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        } else if relative_dir.is_absolute() {
+            relative_dir.to_path_buf()
+        } else {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                .join(relative_dir)
+        };
+        base.join(path)
     };
     Ok(fs::canonicalize(&result).unwrap_or(result))
 }
@@ -202,7 +212,7 @@ where
 fn digest_for_file(path: &Path) -> Result<String> {
     let mut f = File::open(path)?;
     let mut hasher = Sha256::new();
-    let n = io::copy(&mut f, &mut hasher)?;
+    let _ = io::copy(&mut f, &mut hasher)?;
     let digest = hasher.finalize();
     Ok(format!("sha256:{:x}", digest))
 }
@@ -321,5 +331,40 @@ mod tests {
         };
         let p = super::expand_path_impl(Path::new("~another/docs"), Path::new(""), mock_current, mock_lookup).unwrap();
         assert_eq!(p, PathBuf::from("/home/another/docs"));
+    }
+
+    #[test]
+    fn expand_path_cases() {
+        if cfg!(windows) { return; }
+        let pwd = std::env::current_dir().unwrap();
+        let cases = vec![
+            ("~", "", PathBuf::from("/home/testuser"), false),
+            ("~/myfolder/myfile.txt", "", PathBuf::from("/home/testuser/myfolder/myfile.txt"), false),
+            ("~anotheruser/docs/file.txt", "", PathBuf::from("/home/anotheruser/docs/file.txt"), false),
+            ("~nonexistentuser/file.txt", "", PathBuf::new(), true),
+            ("relative/path/to/file", "", pwd.join("relative/path/to/file"), false),
+            ("/absolute/path/to/file", "", PathBuf::from("/absolute/path/to/file"), false),
+            ("/absolute/path/to/file", "someotherdir/", PathBuf::from("/absolute/path/to/file"), false),
+            (".", pwd.to_str().unwrap(), pwd.clone(), false),
+            (".", "", pwd.clone(), false),
+            ("somefile", "somedir", pwd.join("somedir").join("somefile"), false),
+        ];
+        for (path, rel, expected, should_err) in cases {
+            let res = super::expand_path_impl(
+                Path::new(path),
+                Path::new(rel),
+                || Ok(PathBuf::from("/home/testuser")),
+                |name| match name {
+                    "testuser" => Ok(PathBuf::from("/home/testuser")),
+                    "anotheruser" => Ok(PathBuf::from("/home/anotheruser")),
+                    _ => Err(anyhow::anyhow!("user not found")),
+                }
+            );
+            if should_err {
+                assert!(res.is_err());
+            } else {
+                assert_eq!(res.unwrap(), expected);
+            }
+        }
     }
 }
