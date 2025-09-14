@@ -179,7 +179,7 @@ impl fmt::Display for Name {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum PartKind {
     Host,
     Namespace,
@@ -268,4 +268,33 @@ fn cut_promised(s: &str, sep: char) -> (String, String, bool) {
         },
         true,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_valid_part_cases() {
+        let cases = [
+            (PartKind::Host, "", false),
+            (PartKind::Host, "a", true),
+            (PartKind::Host, "a.", true),
+            (PartKind::Host, "a.b", true),
+            (PartKind::Host, "a:123", true),
+            (PartKind::Host, "a:123/aa/bb", false),
+            (PartKind::Namespace, "bb", true),
+            (PartKind::Namespace, "a.", false),
+            (PartKind::Model, "-h", false),
+            (
+                PartKind::Digest,
+                "sha256-1000000000000000000000000000000000000000000000000000000000000000",
+                true,
+            ),
+        ];
+
+        for (kind, s, want) in cases {
+            assert_eq!(is_valid_part(kind, s), want, "kind {:?} s {}", kind, s);
+        }
+    }
 }
