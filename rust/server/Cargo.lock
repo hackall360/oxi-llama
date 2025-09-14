@@ -31,6 +31,7 @@ dependencies = [
  "futures-util",
  "humantime",
  "ollama_types",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",
@@ -237,6 +238,7 @@ name = "convert"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fs",
  "serde",
  "serde_json",
 ]
@@ -495,6 +497,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
 ]
 
 [[package]]
@@ -1645,6 +1654,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "time",
  "tokio",
  "tower",
  "tracing",
