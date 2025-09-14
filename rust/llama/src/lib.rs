@@ -1,9 +1,8 @@
-use std::ffi::{CString};
-use std::os::raw::{c_char, c_int};
+use std::ffi::CString;
 
-extern "C" {
-    fn schema_to_grammar(json_schema: *const c_char, grammar: *mut c_char, max_len: usize) -> c_int;
-}
+// Bindings to the C helper are generated at build time by bindgen and included
+// here. This keeps the Rust declarations in sync with the C header.
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 /// Convert a JSON schema into a grammar representation used by llama.cpp.
 ///
@@ -13,7 +12,7 @@ pub fn schema_to_grammar_safe(schema: &str) -> Option<Vec<u8>> {
     // similar heuristic to llama.go
     let max_len = std::cmp::max(32 * 1024, std::cmp::min(1024 * 1024, schema.len() * 4));
     let mut buf = vec![0u8; max_len];
-    let n = unsafe { schema_to_grammar(c_schema.as_ptr(), buf.as_mut_ptr() as *mut c_char, max_len) };
+    let n = unsafe { schema_to_grammar(c_schema.as_ptr(), buf.as_mut_ptr() as *mut ::std::os::raw::c_char, max_len) };
     if n <= 0 {
         None
     } else {
