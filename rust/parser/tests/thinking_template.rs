@@ -23,3 +23,9 @@ fn infer_qwen3() {
     assert_eq!(o, "<think>");
     assert_eq!(c, "</think>");
 }
+#[test]
+fn infer_doubly_nested_range() {
+    let tmpl = "{{ if .Thinking}}/think{{ end }}{{- range $i, $_ := .Messages }}{{- range $j, $_ := .NotMessages }}{{- $last := eq (len (slice $.Messages $i)) 1 -}}{{ if and $last .Thinking }}<think>{{ .Thinking }}</think>{{ end }}{{ end }}{{ end }}";
+    let (o, c) = infer_tags(tmpl);
+    assert!(o.is_empty() && c.is_empty());
+}
