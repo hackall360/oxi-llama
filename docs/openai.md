@@ -367,7 +367,9 @@ curl http://localhost:11434/v1/chat/completions \
     }'
 ```
 
-### Rust example
+### Rust examples
+
+#### Chat completion
 
 ```rust
 use api::openai::{ChatCompletionRequest, Message};
@@ -384,10 +386,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: serde_json::Value::String("Hello".into()),
             ..Default::default()
         }],
-        ..Default::default()
+        ..Default::default(),
     };
     let resp: serde_json::Value = client
         .do_request(Method::POST, "/v1/chat/completions", Some(&req))
+        .await?;
+    println!("{resp}");
+    Ok(())
+}
+```
+
+#### Text completion
+
+```rust
+use api::openai::CompletionRequest;
+use api::Client;
+use reqwest::Method;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    let req = CompletionRequest {
+        model: "llama3.1".into(),
+        prompt: "Hello".into(),
+        ..Default::default()
+    };
+    let resp: serde_json::Value = client
+        .do_request(Method::POST, "/v1/completions", Some(&req))
         .await?;
     println!("{resp}");
     Ok(())

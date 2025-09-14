@@ -177,6 +177,117 @@ pub struct ListCompletion {
     pub data: Option<Vec<Model>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Usage {
+    #[serde(default)]
+    pub prompt_tokens: i32,
+    #[serde(default)]
+    pub completion_tokens: i32,
+    #[serde(default)]
+    pub total_tokens: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Choice {
+    pub index: i32,
+    pub message: Message,
+    #[serde(rename = "finish_reason", skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ChunkChoice {
+    pub index: i32,
+    pub delta: Message,
+    #[serde(rename = "finish_reason", skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct CompleteChunkChoice {
+    pub text: String,
+    pub index: i32,
+    #[serde(rename = "finish_reason", skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ChatCompletion {
+    pub id: String,
+    pub object: String,
+    pub created: i64,
+    pub model: String,
+    #[serde(rename = "system_fingerprint")]
+    pub system_fingerprint: String,
+    pub choices: Vec<Choice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ChatCompletionChunk {
+    pub id: String,
+    pub object: String,
+    pub created: i64,
+    pub model: String,
+    #[serde(rename = "system_fingerprint")]
+    pub system_fingerprint: String,
+    pub choices: Vec<ChunkChoice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Completion {
+    pub id: String,
+    pub object: String,
+    pub created: i64,
+    pub model: String,
+    #[serde(rename = "system_fingerprint")]
+    pub system_fingerprint: String,
+    pub choices: Vec<CompleteChunkChoice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct CompletionChunk {
+    pub id: String,
+    pub object: String,
+    pub created: i64,
+    pub model: String,
+    #[serde(rename = "system_fingerprint")]
+    pub system_fingerprint: String,
+    pub choices: Vec<CompleteChunkChoice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct Embedding {
+    pub object: String,
+    pub embedding: Vec<f32>,
+    pub index: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct EmbeddingUsage {
+    #[serde(default)]
+    pub prompt_tokens: i32,
+    #[serde(default)]
+    pub total_tokens: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct EmbeddingList {
+    pub object: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub data: Vec<Embedding>,
+    pub model: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<EmbeddingUsage>,
+}
+
 /// Convert chat completion request into an internal [`api::ChatRequest`].
 pub fn from_chat_request(r: ChatCompletionRequest) -> Result<api::ChatRequest, ErrorResponse> {
     let mut messages: Vec<ApiMessage> = Vec::new();
@@ -532,6 +643,214 @@ pub fn to_model(r: api::ShowResponse, model: &str) -> Model {
         object: "model".into(),
         created,
         owned_by: name.namespace,
+    }
+}
+
+fn to_usage_chat(r: &api::ChatResponse) -> Usage {
+    let prompt = r.metrics.prompt_eval_count.unwrap_or(0);
+    let completion = r.metrics.eval_count.unwrap_or(0);
+    Usage {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+        total_tokens: prompt + completion,
+    }
+}
+
+fn tool_call_id() -> String {
+    use rand::{distributions::Alphanumeric, Rng};
+    let s: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(8)
+        .map(char::from)
+        .collect();
+    format!("call_{}", s.to_lowercase())
+}
+
+fn to_tool_calls(tc: &[api::ToolCall]) -> Vec<ToolCall> {
+    tc.iter()
+        .map(|t| {
+            let args = serde_json::to_string(&t.function.arguments).unwrap_or_default();
+            ToolCall {
+                id: Some(tool_call_id()),
+                type_field: "function".into(),
+                function: ToolCallFunction {
+                    name: t.function.name.clone(),
+                    arguments: args,
+                    index: t.function.index,
+                },
+            }
+        })
+        .collect()
+}
+
+/// Convert an [`api::ChatResponse`] into an OpenAI ChatCompletion.
+pub fn to_chat_completion(id: &str, r: api::ChatResponse) -> ChatCompletion {
+    let usage = to_usage_chat(&r);
+    let created = OffsetDateTime::parse(&r.created_at, &time::format_description::well_known::Rfc3339)
+        .map(|t| t.unix_timestamp())
+        .unwrap_or(0);
+    let model = r.model.clone();
+    let done_reason = r.done_reason.clone();
+    let message = r.message;
+    let tool_calls = to_tool_calls(&message.tool_calls);
+    let finish_reason = if !tool_calls.is_empty() {
+        Some("tool_calls".into())
+    } else if !done_reason.is_empty() {
+        Some(done_reason)
+    } else {
+        None
+    };
+
+    ChatCompletion {
+        id: id.to_string(),
+        object: "chat.completion".into(),
+        created,
+        model,
+        system_fingerprint: "fp_ollama".into(),
+        choices: vec![Choice {
+            index: 0,
+            message: Message {
+                role: message.role,
+                content: Value::String(message.content),
+                reasoning: if message.thinking.is_empty() {
+                    None
+                } else {
+                    Some(message.thinking)
+                },
+                tool_calls,
+                name: None,
+                tool_call_id: None,
+            },
+            finish_reason,
+        }],
+        usage: Some(usage),
+    }
+}
+
+/// Convert a chat response chunk for streaming.
+pub fn to_chat_chunk(id: &str, r: api::ChatResponse, tool_call_sent: bool) -> ChatCompletionChunk {
+    let tool_calls = to_tool_calls(&r.message.tool_calls);
+    let finish_reason = if !r.done_reason.is_empty() {
+        if tool_call_sent || !tool_calls.is_empty() {
+            Some("tool_calls".into())
+        } else {
+            Some(r.done_reason.clone())
+        }
+    } else {
+        None
+    };
+
+    ChatCompletionChunk {
+        id: id.to_string(),
+        object: "chat.completion.chunk".into(),
+        created: OffsetDateTime::now_utc().unix_timestamp(),
+        model: r.model,
+        system_fingerprint: "fp_ollama".into(),
+        choices: vec![ChunkChoice {
+            index: 0,
+            delta: Message {
+                role: "assistant".into(),
+                content: Value::String(r.message.content),
+                reasoning: if r.message.thinking.is_empty() {
+                    None
+                } else {
+                    Some(r.message.thinking)
+                },
+                tool_calls,
+                name: None,
+                tool_call_id: None,
+            },
+            finish_reason,
+        }],
+        usage: None,
+    }
+}
+
+fn to_usage_generate(r: &api::GenerateResponse) -> Usage {
+    let prompt = r.metrics.prompt_eval_count.unwrap_or(0);
+    let completion = r.metrics.eval_count.unwrap_or(0);
+    Usage {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+        total_tokens: prompt + completion,
+    }
+}
+
+/// Convert a [`api::GenerateResponse`] into an OpenAI completion.
+pub fn to_completion(id: &str, r: api::GenerateResponse) -> Completion {
+    let usage = to_usage_generate(&r);
+    let created = OffsetDateTime::parse(&r.created_at, &time::format_description::well_known::Rfc3339)
+        .map(|t| t.unix_timestamp())
+        .unwrap_or(0);
+    let model = r.model.clone();
+    let text = r.response.clone();
+    let finish_reason = if r.done_reason.is_empty() {
+        None
+    } else {
+        Some(r.done_reason.clone())
+    };
+    Completion {
+        id: id.to_string(),
+        object: "text_completion".into(),
+        created,
+        model,
+        system_fingerprint: "fp_ollama".into(),
+        choices: vec![CompleteChunkChoice {
+            text,
+            index: 0,
+            finish_reason,
+        }],
+        usage: Some(usage),
+    }
+}
+
+/// Convert a streaming generate response chunk.
+pub fn to_completion_chunk(id: &str, r: api::GenerateResponse) -> CompletionChunk {
+    let finish_reason = if r.done_reason.is_empty() {
+        None
+    } else {
+        Some(r.done_reason.clone())
+    };
+    CompletionChunk {
+        id: id.to_string(),
+        object: "text_completion".into(),
+        created: OffsetDateTime::now_utc().unix_timestamp(),
+        model: r.model,
+        system_fingerprint: "fp_ollama".into(),
+        choices: vec![CompleteChunkChoice {
+            text: r.response,
+            index: 0,
+            finish_reason,
+        }],
+        usage: None,
+    }
+}
+
+/// Convert an embedding response into an OpenAI embedding list.
+pub fn to_embedding_list(model: &str, r: api::EmbedResponse) -> EmbeddingList {
+    if r.embeddings.is_empty() {
+        return EmbeddingList::default();
+    }
+
+    let data = r
+        .embeddings
+        .into_iter()
+        .enumerate()
+        .map(|(i, e)| Embedding {
+            object: "embedding".into(),
+            embedding: e,
+            index: i as i32,
+        })
+        .collect();
+
+    EmbeddingList {
+        object: "list".into(),
+        data,
+        model: model.into(),
+        usage: Some(EmbeddingUsage {
+            prompt_tokens: r.prompt_eval_count.unwrap_or(0),
+            total_tokens: r.prompt_eval_count.unwrap_or(0),
+        }),
     }
 }
 
