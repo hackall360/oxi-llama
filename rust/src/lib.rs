@@ -1,4 +1,5 @@
 pub use envconfig;
+pub use logutil::{self, Level, debug, error, info, trace, warn};
 
 pub mod format;
 pub use format::{format_bytes, format_time};
