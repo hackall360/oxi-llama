@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 dirs = "5"
 humantime = "2"
-log = "0.4"
+logutil = { path = "../logutil" }

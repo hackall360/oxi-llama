@@ -2,7 +2,7 @@ use std::env;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
-use log::warn;
+use logutil::warn;
 
 /// Returns the scheme and host. Host can be configured via the OLLAMA_HOST environment variable.
 /// Default is scheme "http" and host "127.0.0.1:11434".
