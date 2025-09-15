@@ -1,8 +1,9 @@
 use model::{
-    get_text_processor, parse_tags, register_model, Model, ModelError, RegisteredModel, Special,
-    TextProcessor, Vocabulary,
+    default_config_path, get_text_processor, parse_tags, register_model, Model, ModelError,
+    RegisteredModel, Special, TextProcessor, Vocabulary,
 };
 use once_cell::sync::Lazy;
+use std::env;
 
 struct DummyTP;
 impl Model for DummyTP {}
@@ -48,4 +49,12 @@ fn test_get_text_processor() {
         Err(ModelError::NotTextProcessor) => {}
         _ => panic!("unexpected error"),
     }
+}
+
+#[test]
+fn test_default_config_path_env() {
+    let dir = tempfile::tempdir().unwrap();
+    env::set_var("OLLAMA_CONFIG", dir.path());
+    assert_eq!(default_config_path(), dir.path());
+    env::remove_var("OLLAMA_CONFIG");
 }

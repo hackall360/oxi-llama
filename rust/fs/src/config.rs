@@ -27,4 +27,13 @@ mod tests {
         assert_eq!(config_dir(), dir);
         env::remove_var("OLLAMA_CONFIG");
     }
+
+    #[test]
+    fn home_default() {
+        env::remove_var("OLLAMA_CONFIG");
+        let dir = tempfile::tempdir().unwrap();
+        env::set_var("HOME", dir.path());
+        assert_eq!(config_dir(), dir.path().join(".ollama"));
+        env::remove_var("HOME");
+    }
 }
