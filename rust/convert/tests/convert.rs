@@ -1,10 +1,12 @@
 use std::path::Path;
 
 use convert::{convert_model, ModelFormat};
+use fs::gguf::GgufFile;
 
 #[test]
-fn convert_stub_runs() {
-    let src = Path::new(".");
-    let dst = Path::new("model.bin");
-    convert_model(src, dst, ModelFormat::LLaMA).unwrap();
+fn convert_writes_gguf() {
+    let dir = tempfile::tempdir().unwrap();
+    let dst = dir.path().join("out.gguf");
+    convert_model(Path::new("."), &dst, ModelFormat::LLaMA).unwrap();
+    GgufFile::open(&dst).unwrap();
 }

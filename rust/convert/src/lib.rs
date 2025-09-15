@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::Result;
-use fs::gguf::GgufFile;
+use fs::gguf::{write_gguf, GgufFile, Value};
 
 pub mod tokenizer;
 pub mod tensor;
@@ -41,11 +42,16 @@ pub fn convert_model<S: AsRef<Path>, D: AsRef<Path>>(
     dst: D,
     _format: ModelFormat,
 ) -> Result<()> {
-    let _ = dst.as_ref();
     if src.as_ref().is_file() {
         // Attempt to open the source as a GGUF file to exercise the reader. Any
         // error is ignored since conversion logic is not yet implemented.
         let _ = GgufFile::open(src.as_ref());
     }
+    let mut kv = HashMap::new();
+    kv.insert(
+        "general.architecture".to_string(),
+        Value::String("stub".into()),
+    );
+    write_gguf(dst.as_ref(), &kv, &[])?;
     Ok(())
 }
