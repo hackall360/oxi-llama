@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum State {
+pub enum State {
     LookingForOpening,
     ThinkingStartedEatingWhitespace,
     Thinking,
@@ -47,22 +47,27 @@ impl Parser {
         }
         (thinking, remaining)
     }
+
+    pub fn state(&self) -> State {
+        self.state
+    }
 }
 
 fn eat(p: &mut Parser) -> (String, String, bool) {
     match p.state {
         State::LookingForOpening => {
-            let trimmed = p.acc.trim_start();
-            if trimmed.starts_with(&p.opening_tag) && !p.opening_tag.is_empty() {
+            let trimmed = p.acc.trim_start().to_string();
+            if trimmed.starts_with(&p.opening_tag) {
                 let after = trimmed[p.opening_tag.len()..].trim_start().to_string();
-                p.acc = after;
-                if p.acc.is_empty() {
+                p.acc.clear();
+                if after.is_empty() {
                     p.state = State::ThinkingStartedEatingWhitespace;
                 } else {
                     p.state = State::Thinking;
+                    p.acc.push_str(&after);
                 }
                 (String::new(), String::new(), true)
-            } else if !p.opening_tag.is_empty() && p.opening_tag.starts_with(trimmed) {
+            } else if !p.opening_tag.is_empty() && p.opening_tag.starts_with(trimmed.as_str()) {
                 (String::new(), String::new(), false)
             } else if trimmed.is_empty() {
                 (String::new(), String::new(), false)
@@ -74,11 +79,12 @@ fn eat(p: &mut Parser) -> (String, String, bool) {
         }
         State::ThinkingStartedEatingWhitespace => {
             let trimmed = p.acc.trim_start().to_string();
-            p.acc = trimmed.clone();
+            p.acc.clear();
             if trimmed.is_empty() {
                 (String::new(), String::new(), false)
             } else {
                 p.state = State::Thinking;
+                p.acc.push_str(&trimmed);
                 (String::new(), String::new(), true)
             }
         }
@@ -87,7 +93,7 @@ fn eat(p: &mut Parser) -> (String, String, bool) {
                 let thinking = p.acc[..idx].to_string();
                 let mut rem = p.acc[idx + p.closing_tag.len()..].to_string();
                 rem = rem.trim_start().to_string();
-                p.acc = rem.clone();
+                p.acc.clear();
                 if rem.is_empty() {
                     p.state = State::ThinkingDoneEatingWhitespace;
                 } else {
@@ -97,7 +103,8 @@ fn eat(p: &mut Parser) -> (String, String, bool) {
             } else if let Some(overlap) = overlap(&p.acc, &p.closing_tag) {
                 let thinking = p.acc[..p.acc.len() - overlap].to_string();
                 let rem = p.acc[p.acc.len() - overlap..].to_string();
-                p.acc = rem;
+                p.acc.clear();
+                p.acc.push_str(&rem);
                 (thinking, String::new(), false)
             } else {
                 let acc = std::mem::take(&mut p.acc);
@@ -106,7 +113,7 @@ fn eat(p: &mut Parser) -> (String, String, bool) {
         }
         State::ThinkingDoneEatingWhitespace => {
             let trimmed = p.acc.trim_start().to_string();
-            p.acc = trimmed.clone();
+            p.acc.clear();
             if trimmed.is_empty() {
                 (String::new(), String::new(), false)
             } else {
@@ -122,6 +129,9 @@ fn eat(p: &mut Parser) -> (String, String, bool) {
 }
 
 fn overlap(s: &str, delim: &str) -> Option<usize> {
+    if delim.is_empty() {
+        return None;
+    }
     let max = delim.len().min(s.len());
     for i in (1..=max).rev() {
         if s.ends_with(&delim[..i]) {
@@ -137,7 +147,11 @@ mod tests {
 
     #[test]
     fn basic_extract() {
-        let mut p = Parser { opening_tag: "<think>".into(), closing_tag: "</think>".into(), ..Default::default() };
+        let mut p = Parser {
+            opening_tag: "<think>".into(),
+            closing_tag: "</think>".into(),
+            ..Default::default()
+        };
         let (t, c) = p.add_content("<think>abc</think>def");
         assert_eq!(t, "abc");
         assert_eq!(c, "def");
