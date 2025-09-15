@@ -5,3 +5,8 @@ edition = "2021"
 
 [dependencies]
 ndarray = "0.15"
+tch = { version = "0.13", optional = true }
+
+[features]
+default = []
+tch = ["dep:tch"]
