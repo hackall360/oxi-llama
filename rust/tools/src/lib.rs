@@ -252,7 +252,8 @@ pub fn parse_tag(tmpl: &str) -> String {
             if expr.contains(".ToolCalls") {
                 let after = &tmpl[end+2..];
                 let (tag, _) = scan_block(after);
-                return tag.unwrap_or_else(|| "{".to_string());
+                let res = tag.map(|t| t.trim().to_string()).unwrap_or_else(|| "{".to_string());
+                return if res == "]" || res == "}" { "{".to_string() } else { res };
             }
             pos = end + 2;
         } else { break; }
@@ -308,7 +309,7 @@ fn extract_tag(text: &str) -> Option<String> {
     let trimmed = text.trim_start();
     let cut = trimmed.find('{').unwrap_or(trimmed.len());
     let tag = trimmed[..cut].trim();
-    if tag.is_empty() { None } else { Some(tag.to_string()) }
+    if tag.is_empty() || tag.contains('"') { None } else { Some(tag.to_string()) }
 }
 
 // Utility
