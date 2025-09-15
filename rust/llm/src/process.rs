@@ -3,22 +3,19 @@ use std::process::{Child, Command};
 
 /// Returns environment variables filtered to only those that should be passed to the runner.
 pub fn filtered_env() -> Vec<(String, String)> {
-    let allow_keys = [
-        "PATH",
-        "LD_LIBRARY_PATH",
-        "DYLD_LIBRARY_PATH",
-    ];
+    let allow_keys = ["PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"];
     let mut envs = Vec::new();
     for (key, value) in env::vars() {
-        let allow = key.starts_with("OLLAMA_")
-            || key.starts_with("CUDA_")
-            || key.starts_with("ROCR_")
-            || key.starts_with("ROCM_")
-            || key.starts_with("HIP_")
-            || key.starts_with("GPU_")
-            || key.starts_with("HSA_")
-            || key.starts_with("GGML_")
-            || allow_keys.contains(&key.as_str());
+        let upper = key.to_ascii_uppercase();
+        let allow = upper.starts_with("OLLAMA_")
+            || upper.starts_with("CUDA_")
+            || upper.starts_with("ROCR_")
+            || upper.starts_with("ROCM_")
+            || upper.starts_with("HIP_")
+            || upper.starts_with("GPU_")
+            || upper.starts_with("HSA_")
+            || upper.starts_with("GGML_")
+            || allow_keys.iter().any(|k| k.eq(&upper));
         if allow {
             envs.push((key, value));
         }
