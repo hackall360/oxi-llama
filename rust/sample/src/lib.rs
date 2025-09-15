@@ -2,9 +2,9 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cmp::Ordering;
 
 #[derive(Clone, Copy, Debug)]
-struct Token {
-    id: i32,
-    value: f32,
+pub struct Token {
+    pub id: i32,
+    pub value: f32,
 }
 
 /// Sampler provides probabilistic sampling with optional
@@ -58,7 +58,7 @@ impl Sampler {
         }
 
         top_k(tokens, self.top_k);
-        temperature_transform(tokens, self.temperature);
+        temperature(tokens, self.temperature);
         softmax(tokens);
         top_p(tokens, self.top_p);
         min_p(tokens, self.min_p);
@@ -94,21 +94,21 @@ impl Sampler {
     }
 }
 
-fn greedy(tokens: &[Token]) -> Token {
+pub fn greedy(tokens: &[Token]) -> Token {
     *tokens
         .iter()
         .max_by(|a, b| a.value.partial_cmp(&b.value).unwrap_or(Ordering::Equal))
         .unwrap()
 }
 
-fn temperature_transform(ts: &mut [Token], temp: f32) {
+pub fn temperature(ts: &mut [Token], temp: f32) {
     let temp = temp.max(1e-7);
     for t in ts {
         t.value /= temp;
     }
 }
 
-fn softmax(ts: &mut [Token]) {
+pub fn softmax(ts: &mut [Token]) {
     let max_logit = ts
         .iter()
         .map(|t| t.value)
@@ -123,7 +123,7 @@ fn softmax(ts: &mut [Token]) {
     }
 }
 
-fn top_k(ts: &mut Vec<Token>, k: Option<usize>) {
+pub fn top_k(ts: &mut Vec<Token>, k: Option<usize>) {
     match k {
         None => ts.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap_or(Ordering::Equal)),
         Some(k) => {
@@ -140,7 +140,7 @@ fn top_k(ts: &mut Vec<Token>, k: Option<usize>) {
     }
 }
 
-fn top_p(ts: &mut Vec<Token>, p: f32) {
+pub fn top_p(ts: &mut Vec<Token>, p: f32) {
     if (p - 1.0).abs() < f32::EPSILON {
         return;
     }
@@ -156,7 +156,7 @@ fn top_p(ts: &mut Vec<Token>, p: f32) {
     ts.truncate(retain);
 }
 
-fn min_p(ts: &mut Vec<Token>, p: f32) {
+pub fn min_p(ts: &mut Vec<Token>, p: f32) {
     if ts.is_empty() {
         return;
     }
@@ -175,6 +175,21 @@ fn min_p(ts: &mut Vec<Token>, p: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn to_tokens(values: &[f32]) -> Vec<Token> {
+        values
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| Token { id: i as i32, value: v })
+            .collect()
+    }
+
+    fn compare_logits(want: &[f32], got: &[Token]) {
+        assert_eq!(want.len(), got.len());
+        for (w, t) in want.iter().zip(got.iter()) {
+            assert!((t.value - w).abs() < 1e-6, "expected {w}, got {}", t.value);
+        }
+    }
 
     #[test]
     fn weighted_basic() {
@@ -198,5 +213,117 @@ mod tests {
         let logits = vec![f32::NAN, f32::NAN, f32::NAN];
         let mut sampler = Sampler::new(1.0, 0, 0.95, 0.05, 0);
         assert!(sampler.sample(&logits).is_err());
+    }
+
+    #[test]
+    fn temperature_transform() {
+        let mut tokens = to_tokens(&[1.0, 4.0, -2.0, 0.0]);
+        temperature(&mut tokens, 0.5);
+        compare_logits(&[2.0, 8.0, -4.0, 0.0], &tokens);
+
+        let mut tokens = to_tokens(&[1.0, 4.0, -2.0, 0.0]);
+        temperature(&mut tokens, 1.0);
+        compare_logits(&[1.0, 4.0, -2.0, 0.0], &tokens);
+
+        let mut tokens = to_tokens(&[1.0, 4.0, -2.0, 0.0]);
+        temperature(&mut tokens, 0.0);
+        compare_logits(&[1e7, 4e7, -2e7, 0.0], &tokens);
+    }
+
+    #[test]
+    fn softmax_basic() {
+        let mut tokens = to_tokens(&[1.0, -2.0, 3.0, 0.0]);
+        softmax(&mut tokens);
+        compare_logits(&[0.113550, 0.005653, 0.839024, 0.041773], &tokens);
+
+        let mut tokens = to_tokens(&[0.026986899, 0.043722924, 0.036774673, 0.27755088, 0.0046718004, 0.08582123, 0.20409796, 0.00412893, 0.15720603, 0.045046154, 0.0030491839, 0.01681367]);
+        softmax(&mut tokens);
+        let sum: f32 = tokens.iter().map(|t| t.value).sum();
+        assert!((sum - 1.0).abs() < 1e-6);
+        for t in tokens {
+            assert!(t.value >= 0.0 && t.value <= 1.0);
+        }
+    }
+
+    #[test]
+    fn topk_basic() {
+        let input = [0.026986899, 0.043722924, 0.036774673, 0.27755088, 0.0046718004, 0.08582123, 0.20409796, 0.00412893, 0.15720603, 0.045046154, 0.0030491839, 0.01681367];
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, Some(5));
+        compare_logits(&[0.27755088, 0.20409796, 0.15720603, 0.08582123, 0.045046154], &tokens);
+
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, Some(20));
+        assert_eq!(tokens.len(), input.len());
+
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, None);
+        compare_logits(&[0.27755088, 0.20409796, 0.15720603, 0.08582123, 0.045046154, 0.043722924, 0.036774673, 0.026986899, 0.01681367, 0.0046718004, 0.00412893, 0.0030491839], &tokens);
+    }
+
+    #[test]
+    fn topp_basic() {
+        let input = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0];
+        let mut tokens = to_tokens(&input);
+        softmax(&mut tokens);
+        top_k(&mut tokens, None);
+        let mut got = tokens.clone();
+        top_p(&mut got, 1.0);
+        assert_eq!(got.len(), input.len());
+
+        let mut got = tokens.clone();
+        top_p(&mut got, 0.95);
+        assert!(got.len() <= 3);
+
+        let input = [-1e6, -1e6, -1e7];
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, None);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        top_p(&mut got, 0.0);
+        assert_eq!(got.len(), 1);
+
+        let mut got = tokens.clone();
+        top_p(&mut got, 1e-10);
+        assert!(got.len() >= 1);
+    }
+
+    #[test]
+    fn minp_basic() {
+        let input = [-2.0, 0.0, -1.0, -3.0, 2.0, 1.0, 4.0, 3.0];
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, None);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        min_p(&mut got, 1.0);
+        assert_eq!(got.len(), 1);
+
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, None);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        min_p(&mut got, 0.2);
+        assert!(got.len() <= 3);
+
+        let mut tokens = to_tokens(&input);
+        top_k(&mut tokens, None);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        min_p(&mut got, 0.0);
+        assert_eq!(got.len(), tokens.len());
+
+        let mut tokens = to_tokens(&input[..1]);
+        top_k(&mut tokens, None);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        min_p(&mut got, 0.1);
+        assert_eq!(got.len(), 1);
+
+        let input = [1e-10f32, 1e-10, 1e-10];
+        let mut tokens = to_tokens(&input);
+        softmax(&mut tokens);
+        let mut got = tokens.clone();
+        min_p(&mut got, 1.0);
+        assert!(got.len() >= 1);
     }
 }
