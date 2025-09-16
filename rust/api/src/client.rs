@@ -1,7 +1,11 @@
 use reqwest::{self, Method, Url};
+use reqwest::header::USER_AGENT;
 use url::ParseError;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::OnceLock;
+
+use version::{self, Version};
 
 use crate::types::*;
 
@@ -54,6 +58,7 @@ impl Client {
     {
         let url = self.base.join(path).map_err(Error::Url)?;
         let mut req = self.http.request(method, url);
+        req = req.header(USER_AGENT, user_agent());
         if let Some(b) = body {
             req = req.json(b);
         }
@@ -83,6 +88,7 @@ impl Client {
     {
         let url = self.base.join(path).map_err(Error::Url)?;
         let mut req = self.http.request(method, url);
+        req = req.header(USER_AGENT, user_agent());
         if let Some(b) = body {
             req = req.json(b);
         }
@@ -195,7 +201,14 @@ impl Client {
 
     pub async fn create_blob<R: Into<reqwest::Body> + Send>(&self, digest: &str, body: R) -> Result<(), Error> {
         let url = self.base.join(&format!("/api/blobs/{}", digest)).map_err(Error::Url)?;
-        let resp = self.http.post(url).body(body).send().await.map_err(Error::Http)?;
+        let resp = self
+            .http
+            .post(url)
+            .header(USER_AGENT, user_agent())
+            .body(body)
+            .send()
+            .await
+            .map_err(Error::Http)?;
         let status = resp.status();
         let bytes = resp.bytes().await.map_err(Error::Http)?;
         if status.is_client_error() || status.is_server_error() {
@@ -231,6 +244,32 @@ impl Client {
     {
         tokio::runtime::Runtime::new().unwrap().block_on(self.chat(req, f))
     }
+}
+
+fn user_agent() -> &'static str {
+    static USER_AGENT_VALUE: OnceLock<String> = OnceLock::new();
+    USER_AGENT_VALUE
+        .get_or_init(|| {
+            let meta = version::metadata();
+            let mut version = Version.to_string();
+            if meta.git_dirty {
+                version.push_str("-dirty");
+            }
+            let commit = meta
+                .git_commit
+                .get(..7)
+                .filter(|s| !s.is_empty())
+                .unwrap_or(meta.git_commit)
+                .to_string();
+            format!(
+                "ollama/{version} ({arch} {os}; commit {commit}) Rust/{rustc}",
+                arch = std::env::consts::ARCH,
+                os = std::env::consts::OS,
+                commit = commit,
+                rustc = meta.rustc_version,
+            )
+        })
+        .as_str()
 }
 
 fn parse_host(input: &str) -> Result<Url, ParseError> {

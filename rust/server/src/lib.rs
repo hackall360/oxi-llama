@@ -2,6 +2,7 @@ use axum::{routing::{post, delete, get}, Router, Json, extract::{State, Path, Re
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use serde_json::{json, Value};
+use version::{Version, BUILD_METADATA};
 use api::{CreateRequest, GenerateRequest, DeleteRequest, GenerateResponse, ChatResponse, EmbedResponse, ListResponse, ShowResponse, Message as ApiMessage, ListModelResponse};
 use api::openai::{self, ChatCompletionRequest, CompletionRequest, EmbedRequest};
 use time::OffsetDateTime;
@@ -21,6 +22,7 @@ pub fn app() -> Router<Arc<AppState>> {
         .route("/api/create", post(create_handler))
         .route("/api/generate", post(generate_handler))
         .route("/api/delete", delete(delete_handler))
+        .route("/api/version", get(version_handler).head(version_handler))
         .route("/api/tags", get(list_handler))
         .route("/v1/chat/completions", post(openai_chat_handler))
         .route("/v1/completions", post(openai_completion_handler))
@@ -59,6 +61,19 @@ pub async fn delete_handler(State(state): State<Arc<AppState>>, Json(req): Json<
 pub async fn list_handler(State(state): State<Arc<AppState>>) -> Json<ListResponse> {
     let models = state.models.lock().unwrap();
     Json(ListResponse { models: models.values().cloned().collect() })
+}
+
+pub async fn version_handler() -> Json<Value> {
+    let meta = BUILD_METADATA;
+    Json(json!({
+        "version": Version,
+        "git_commit": meta.git_commit,
+        "git_dirty": meta.git_dirty,
+        "build_timestamp": meta.build_timestamp,
+        "build_target": meta.build_target,
+        "build_profile": meta.build_profile,
+        "rustc_version": meta.rustc_version,
+    }))
 }
 
 pub async fn openai_chat_handler(Json(req): Json<ChatCompletionRequest>) -> Json<openai::ChatCompletion> {

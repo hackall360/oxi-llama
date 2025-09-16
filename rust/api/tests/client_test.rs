@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::json;
 use std::thread;
 use tiny_http::{Header, Response, Server};
+use version::Version;
 
 #[tokio::test]
 async fn client_from_environment() {
@@ -195,4 +196,26 @@ async fn client_do() {
         }
         handle.join().unwrap();
     }
+}
+
+#[tokio::test]
+async fn client_user_agent_header() {
+    let server = Server::http("127.0.0.1:0").unwrap();
+    let addr = format!("http://{}", server.server_addr());
+    let handle = thread::spawn(move || {
+        if let Ok(request) = server.recv() {
+            let ua = request
+                .headers()
+                .iter()
+                .find(|h| h.field.equiv("User-Agent"))
+                .map(|h| h.value.to_string())
+                .unwrap();
+            assert!(ua.contains(Version));
+            let resp = Response::empty(200);
+            let _ = request.respond(resp);
+        }
+    });
+    let client = Client::new(Url::parse(&addr).unwrap(), reqwest::Client::new());
+    client.heartbeat().await.unwrap();
+    handle.join().unwrap();
 }
