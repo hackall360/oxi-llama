@@ -5,9 +5,10 @@ use clap::{Parser, Subcommand};
 
 pub use envconfig;
 use convert::{convert_model, ModelFormat};
+use version::Version;
 
 #[derive(Parser)]
-#[command(name = "ollama", about = "Rust reimplementation of the Ollama CLI")]
+#[command(name = "ollama", about = "Rust reimplementation of the Ollama CLI", version = Version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
