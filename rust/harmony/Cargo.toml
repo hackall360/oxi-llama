@@ -1,0 +1,10 @@
+[package]
+name = "harmony"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+logutil = { path = "../logutil" }
+api = { path = "../api" }
+unicode-ident = "1.0"
