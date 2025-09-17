@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration as StdDuration;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 use humantime::parse_duration;
 use ollama_types::model::Capability;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 
 pub type ImageData = Vec<u8>;
 
@@ -28,7 +28,10 @@ impl fmt::Display for StatusError {
         } else if !self.error_message.is_empty() {
             write!(f, "{}", self.error_message)
         } else {
-            write!(f, "something went wrong, please see the ollama server logs for details")
+            write!(
+                f,
+                "something went wrong, please see the ollama server logs for details"
+            )
         }
     }
 }
@@ -111,13 +114,13 @@ impl<'de> Deserialize<'de> for ThinkValue {
         let v = Value::deserialize(deserializer)?;
         match v {
             Value::Bool(b) => Ok(ThinkValue::Bool(b)),
-            Value::String(s) => {
-                match s.as_str() {
-                    "high" | "medium" | "low" => Ok(ThinkValue::Str(s)),
-                    _ => Err(serde::de::Error::custom("invalid think value")),
-                }
-            }
-            _ => Err(serde::de::Error::custom("think must be a boolean or string")),
+            Value::String(s) => match s.as_str() {
+                "high" | "medium" | "low" => Ok(ThinkValue::Str(s)),
+                _ => Err(serde::de::Error::custom("invalid think value")),
+            },
+            _ => Err(serde::de::Error::custom(
+                "think must be a boolean or string",
+            )),
         }
     }
 }
@@ -261,6 +264,46 @@ pub struct ToolProperty {
     pub description: String,
     #[serde(rename = "enum", default, skip_serializing_if = "Vec::is_empty")]
     pub enum_values: Vec<Value>,
+}
+
+impl ToolProperty {
+    pub fn to_typescript_type(&self) -> String {
+        if !self.any_of.is_empty() {
+            let types: Vec<String> = self
+                .any_of
+                .iter()
+                .map(ToolProperty::to_typescript_type)
+                .collect();
+            return types.join(" | ");
+        }
+
+        let kinds = &self.r#type.0;
+        if kinds.is_empty() {
+            return "any".to_string();
+        }
+
+        if kinds.len() == 1 {
+            return map_to_typescript_type(&kinds[0]);
+        }
+
+        kinds
+            .iter()
+            .map(|k| map_to_typescript_type(k))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+}
+
+fn map_to_typescript_type(json_type: &str) -> String {
+    match json_type {
+        "string" => "string".to_string(),
+        "number" | "integer" => "number".to_string(),
+        "boolean" => "boolean".to_string(),
+        "array" => "any[]".to_string(),
+        "object" => "Record<string, any>".to_string(),
+        "null" => "null".to_string(),
+        _ => "any".to_string(),
+    }
 }
 
 // ------------ Message ------------
@@ -526,7 +569,9 @@ impl Options {
     }
 }
 
-pub fn format_params(params: HashMap<String, Vec<String>>) -> Result<HashMap<String, Value>, String> {
+pub fn format_params(
+    params: HashMap<String, Vec<String>>,
+) -> Result<HashMap<String, Value>, String> {
     let mut out = HashMap::new();
     for (k, vals) in params {
         match k.as_str() {
@@ -553,7 +598,11 @@ pub fn format_params(params: HashMap<String, Vec<String>>) -> Result<HashMap<Str
 pub struct EmbedRequest {
     pub model: String,
     pub input: Value,
-    #[serde(rename = "keep_alive", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "keep_alive",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub keep_alive: Option<Duration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub truncate: Option<bool>,
@@ -579,7 +628,11 @@ pub struct EmbedResponse {
 pub struct EmbeddingRequest {
     pub model: String,
     pub prompt: String,
-    #[serde(rename = "keep_alive", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "keep_alive",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub keep_alive: Option<Duration>,
     #[serde(default)]
     pub options: HashMap<String, Value>,
@@ -783,4 +836,3 @@ pub struct ProcessResponse {
 pub struct TokenResponse {
     pub token: String,
 }
-

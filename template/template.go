@@ -1,5 +1,7 @@
 package template
 
+// Deprecated: the Rust crate in rust/template provides the maintained implementation.
+
 import (
 	"bytes"
 	"embed"
