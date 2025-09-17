@@ -1,16 +1,31 @@
 use std::collections::HashMap;
 
-use api::{ChatRequest, Duration, Message, PropertyType, GenerateRequest, ThinkValue, ToolFunction, ToolFunctionParameters, ToolProperty, format_params, default_options, DefValue};
+use api::{
+    default_options, format_params, ChatRequest, DefValue, Duration, GenerateRequest, Message,
+    PropertyType, ThinkValue, ToolFunction, ToolFunctionParameters, ToolProperty,
+};
 use serde_json::{self, json};
 
 #[test]
 fn keep_alive_parsing_from_json() {
     let cases = vec![
         ("{}", None),
-        ("{ \"keep_alive\": 42 }", Some(Duration(std::time::Duration::from_secs(42)))),
-        ("{ \"keep_alive\": 42.5 }", Some(Duration(std::time::Duration::from_millis(42500)))),
-        ("{ \"keep_alive\": \"42m\" }", Some(Duration(std::time::Duration::from_secs(42*60)))),
-        ("{ \"keep_alive\": -1 }", Some(Duration(std::time::Duration::MAX))),
+        (
+            "{ \"keep_alive\": 42 }",
+            Some(Duration(std::time::Duration::from_secs(42))),
+        ),
+        (
+            "{ \"keep_alive\": 42.5 }",
+            Some(Duration(std::time::Duration::from_millis(42500))),
+        ),
+        (
+            "{ \"keep_alive\": \"42m\" }",
+            Some(Duration(std::time::Duration::from_secs(42 * 60))),
+        ),
+        (
+            "{ \"keep_alive\": -1 }",
+            Some(Duration(std::time::Duration::MAX)),
+        ),
     ];
     for (req, exp) in cases {
         let dec: ChatRequest = serde_json::from_str(req).unwrap();
@@ -105,7 +120,10 @@ fn property_type_unmarshal_marshal() {
 fn thinking_unmarshal() {
     let cases = vec![
         ("{ \"think\": true }", Some(ThinkValue::Bool(true))),
-        ("{ \"think\": \"high\" }", Some(ThinkValue::Str("high".into()))),
+        (
+            "{ \"think\": \"high\" }",
+            Some(ThinkValue::Str("high".into())),
+        ),
         ("{}", None),
     ];
     for (input, expected) in cases {
@@ -126,7 +144,14 @@ fn tool_function_parameters_string() {
         required: vec!["name".into()],
         properties: {
             let mut m = HashMap::new();
-            m.insert("name".into(), ToolProperty { r#type: PropertyType(vec!["string".into()]), description: "The name".into(), ..Default::default() });
+            m.insert(
+                "name".into(),
+                ToolProperty {
+                    r#type: PropertyType(vec!["string".into()]),
+                    description: "The name".into(),
+                    ..Default::default()
+                },
+            );
             m
         },
         ..Default::default()
@@ -135,6 +160,51 @@ fn tool_function_parameters_string() {
     let got: serde_json::Value = serde_json::from_str(&params.to_string()).unwrap();
     assert_eq!(got, expected);
 
-    let params_fail = ToolFunctionParameters { type_field: "object".into(), defs: Some(DefValue::Fail), ..Default::default() };
+    let params_fail = ToolFunctionParameters {
+        type_field: "object".into(),
+        defs: Some(DefValue::Fail),
+        ..Default::default()
+    };
     assert_eq!(params_fail.to_string(), "");
+}
+
+#[test]
+fn tool_property_to_typescript_type() {
+    let cases = vec![
+        (
+            ToolProperty {
+                r#type: PropertyType(vec!["string".into()]),
+                ..Default::default()
+            },
+            "string",
+        ),
+        (
+            ToolProperty {
+                r#type: PropertyType(vec!["number".into(), "null".into()]),
+                ..Default::default()
+            },
+            "number | null",
+        ),
+        (
+            ToolProperty {
+                any_of: vec![
+                    ToolProperty {
+                        r#type: PropertyType(vec!["boolean".into()]),
+                        ..Default::default()
+                    },
+                    ToolProperty {
+                        r#type: PropertyType(vec!["object".into()]),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+            "boolean | Record<string, any>",
+        ),
+        (ToolProperty::default(), "any"),
+    ];
+
+    for (prop, expected) in cases {
+        assert_eq!(prop.to_typescript_type(), expected);
+    }
 }

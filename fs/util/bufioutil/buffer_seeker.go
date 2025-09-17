@@ -1,5 +1,7 @@
 package bufioutil
 
+// Deprecated: use the rust/fs util crate's BufferedSeeker instead.
+
 import (
 	"bufio"
 	"io"
