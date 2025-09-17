@@ -1,0 +1,65 @@
+[package]
+name = "oxi-llama"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cli = { workspace = true }
+
+[workspace]
+resolver = "2"
+members = [
+    "rust",
+    "rust/api",
+    "rust/app_runtime",
+    "rust/auth",
+    "rust/cli",
+    "rust/convert",
+    "rust/discover",
+    "rust/envconfig",
+    "rust/fs",
+    "rust/harmony",
+    "rust/kvcache",
+    "rust/llama",
+    "rust/logutil",
+    "rust/model",
+    "rust/ml",
+    "rust/ollama_types",
+    "rust/parser",
+    "rust/progress",
+    "rust/readline",
+    "rust/runner",
+    "rust/sample",
+    "rust/server",
+    "rust/template",
+    "rust/tools",
+    "rust/version",
+    "rust/llm",
+]
+
+[workspace.dependencies]
+api = { path = "rust/api" }
+app_runtime = { path = "rust/app_runtime" }
+auth = { path = "rust/auth" }
+cli = { path = "rust/cli" }
+convert = { path = "rust/convert" }
+discover = { path = "rust/discover" }
+envconfig = { path = "rust/envconfig" }
+fs = { path = "rust/fs" }
+harmony = { path = "rust/harmony" }
+kvcache = { path = "rust/kvcache" }
+llama = { path = "rust/llama" }
+llm = { path = "rust/llm" }
+logutil = { path = "rust/logutil" }
+model = { path = "rust/model" }
+ml = { path = "rust/ml" }
+ollama_types = { path = "rust/ollama_types" }
+parser = { path = "rust/parser" }
+progress = { path = "rust/progress" }
+readline = { path = "rust/readline" }
+runner = { path = "rust/runner" }
+sample = { path = "rust/sample" }
+server = { path = "rust/server" }
+template = { path = "rust/template" }
+tools = { path = "rust/tools" }
+version = { path = "rust/version" }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-kvcache = { path = "../kvcache" }
+kvcache = { workspace = true }
 
 [build-dependencies]
 cc = "1.0"

@@ -6,14 +6,14 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 atty = "0.2"
-auth = { path = "../auth" }
+auth = { workspace = true }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 crossbeam-channel = "0.5"
 ctrlc = "3.4"
 dirs = "5.0"
-envconfig = { path = "../envconfig" }
+envconfig = { workspace = true }
 ico = "0.3"
-logutil = { path = "../logutil" }
+logutil = { workspace = true }
 once_cell = "1.19"
 open = "5.0"
 parking_lot = "0.12"
@@ -27,7 +27,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "std"] }
 url = "2.5"
 uuid = { version = "1", features = ["v4"] }
-version = { path = "../version" }
+version = { workspace = true }
 walkdir = "2.5"
 which = "6.0"
 

@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 nom = "7"
-logutil = { path = "../logutil" }
-api = { path = "../api" }
+logutil = { workspace = true }
+api = { workspace = true }
 unicode-ident = "1.0"
