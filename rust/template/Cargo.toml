@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-api = { path = "../api" }
+api = { workspace = true }
 include_dir = "0.7"
 go-template = "0.0.3"
 gtmpl_value = "0.5"
