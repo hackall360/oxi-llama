@@ -104,6 +104,22 @@ cargo run -- serve
 docker build .
 ```
 
+Optional build arguments are available to tune the Rust compilation that runs in
+the Docker builder stage:
+
+- `CARGO_FEATURES` – comma-separated list passed to `cargo build --features`.
+  Enable `ml/tch` for the Torch-based runtime and add `tch/cuda` or
+  `tch/rocm` to match the GPU backend that is being packaged.
+- `RUST_TARGETS` – space-separated `rustup target add` values that are
+  installed before building (useful for cross-compilation).
+
+Examples:
+
+```shell
+docker build --build-arg CARGO_FEATURES=ml/tch .
+docker build --build-arg FLAVOR=rocm --build-arg CARGO_FEATURES=ml/tch,tch/rocm .
+```
+
 ### ROCm
 
 ```shell

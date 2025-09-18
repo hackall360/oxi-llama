@@ -102,16 +102,20 @@ WORKDIR /work/ollama
 ARG RUST_VERSION=1.80.1
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal
 ENV PATH=/root/.cargo/bin:$PATH
+ARG RUST_TARGETS=""
+RUN /bin/sh -c 'set -eux; if [ -n "${RUST_TARGETS}" ]; then for target in ${RUST_TARGETS}; do rustup target add "${target}"; done; fi'
 ARG VERSION
 ENV VERSION=${VERSION}
+ARG CARGO_FEATURES=""
+ENV CARGO_FEATURES=${CARGO_FEATURES}
 COPY . .
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
-    cargo fetch
+    cargo fetch --locked
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
-    cargo build --release --bin ollama
-RUN install -Dm755 target/release/ollama /bin/ollama
+    /bin/sh -c 'set -eux; if [ -n "${CARGO_FEATURES}" ]; then cargo build --release --bin ollama --features "${CARGO_FEATURES}"; else cargo build --release --bin ollama; fi'
+RUN /bin/sh -c 'set -eux; mkdir -p target/release/runtime-libs; find target/release -maxdepth 1 -type f -name "*.so" -exec cp {} target/release/runtime-libs/ \;; find target/release/deps -maxdepth 1 -type f -name "*.so" -exec cp {} target/release/runtime-libs/ \;'
 
 FROM --platform=linux/amd64 scratch AS amd64
 # COPY --from=cuda-11 dist/lib/ollama/ /lib/ollama/
@@ -130,7 +134,8 @@ COPY --from=rocm-6 dist/lib/ollama /lib/ollama
 
 FROM ${FLAVOR} AS archive
 COPY --from=cpu dist/lib/ollama /lib/ollama
-COPY --from=build /bin/ollama /bin/ollama
+COPY --from=build /work/ollama/target/release/ollama /bin/ollama
+COPY --from=build /work/ollama/target/release/runtime-libs/ /lib/ollama/
 
 FROM ubuntu:24.04
 RUN apt-get update \
