@@ -8,8 +8,42 @@ usage() {
     exit 1
 }
 
-export VERSION=${VERSION:-$(git describe --tags --first-parent --abbrev=7 --long --dirty --always | sed -e "s/^v//g")}
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+if [ -z "${VERSION:-}" ] || [ -z "${VERSION_SEMVER:-}" ] || [ -z "${VERSION_METADATA:-}" ]; then
+    OLLAMA_ENV_QUIET=1 . "$SCRIPT_DIR/env.sh"
+    unset OLLAMA_ENV_QUIET
+else
+    # Ensure helper variables are initialised when env.sh is not sourced.
+    CARGO_FEATURES=${CARGO_FEATURES:-""}
+fi
+export VERSION
+export VERSION_SEMVER=${VERSION_SEMVER:-${VERSION%%+*}}
+export VERSION_METADATA=${VERSION_METADATA:-$VERSION}
 export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-11.3}
+
+collect_runtime_libs() {
+    target_triple=$1
+    pattern=$2
+    destination=$3
+
+    runtime_dir="target/${target_triple}/release/runtime-libs"
+    rm -rf "$runtime_dir"
+    mkdir -p "$runtime_dir"
+
+    for search_dir in "target/${target_triple}/release" "target/${target_triple}/release/deps"; do
+        if [ -d "$search_dir" ]; then
+            find "$search_dir" -maxdepth 1 -type f -name "$pattern" -exec cp {} "$runtime_dir"/ \;
+        fi
+    done
+
+    if [ -n "$(ls -A "$runtime_dir" 2>/dev/null)" ]; then
+        mkdir -p "$destination"
+        for lib in "$runtime_dir"/*; do
+            [ -f "$lib" ] || continue
+            install -m755 "$lib" "$destination/$(basename "$lib")"
+        done
+    fi
+}
 
 ARCHS="arm64 amd64"
 while getopts "a:h" OPTION; do
@@ -34,8 +68,13 @@ _build_darwin() {
         esac
 
         rustup target add "$TARGET_TRIPLE" >/dev/null 2>&1 || true
-        cargo build --release --bin ollama --target "$TARGET_TRIPLE"
+        if [ -n "$CARGO_FEATURES" ]; then
+            cargo build --release --bin ollama --target "$TARGET_TRIPLE" --features "$CARGO_FEATURES"
+        else
+            cargo build --release --bin ollama --target "$TARGET_TRIPLE"
+        fi
         install -Dm755 "target/$TARGET_TRIPLE/release/ollama" "$INSTALL_PREFIX/ollama"
+        collect_runtime_libs "$TARGET_TRIPLE" "*.dylib" "$INSTALL_PREFIX/lib/ollama"
 
         if [ "$ARCH" = "amd64" ]; then
             status "Building darwin $ARCH dynamic backends"
@@ -82,7 +121,16 @@ _build_macapp() {
         npm run --prefix macapp make
     fi
 
-    mv ./macapp/out/make/zip/darwin/universal/Ollama-darwin-universal-$VERSION.zip dist/Ollama-darwin.zip
+    MACAPP_VERSION=${VERSION_SEMVER:-${VERSION%%+*}}
+    MACAPP_ZIP="./macapp/out/make/zip/darwin/universal/Ollama-darwin-universal-${MACAPP_VERSION}.zip"
+    if [ ! -f "$MACAPP_ZIP" ]; then
+        MACAPP_ZIP="./macapp/out/make/zip/darwin/universal/Ollama-darwin-universal-${VERSION}.zip"
+    fi
+    if [ ! -f "$MACAPP_ZIP" ]; then
+        echo "Unable to locate packaged app for version ${MACAPP_VERSION} or ${VERSION}" >&2
+        exit 1
+    fi
+    mv "$MACAPP_ZIP" dist/Ollama-darwin.zip
 }
 
 if [ "$#" -eq 0 ]; then
