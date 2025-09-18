@@ -1,7 +1,11 @@
 use ndarray::{Array1, Array2, Axis};
 
 /// Applies a linear transformation: `output = input * weight^T + bias`.
-pub fn linear(input: &Array2<f32>, weight: &Array2<f32>, bias: Option<&Array1<f32>>) -> Array2<f32> {
+pub fn linear(
+    input: &Array2<f32>,
+    weight: &Array2<f32>,
+    bias: Option<&Array1<f32>>,
+) -> Array2<f32> {
     let mut output = input.dot(&weight.t());
     if let Some(b) = bias {
         output = output + &b.view().insert_axis(Axis(0));

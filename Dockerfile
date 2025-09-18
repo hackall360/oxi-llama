@@ -98,18 +98,20 @@ RUN --mount=type=cache,target=/root/.ccache \
         && cmake --install build --component CUDA --strip --parallel 8
 
 FROM base AS build
-WORKDIR /go/src/github.com/ollama/ollama
-COPY go.mod go.sum .
-RUN curl -fsSL https://golang.org/dl/go$(awk '/^go/ { print $2 }' go.mod).linux-$(case $(uname -m) in x86_64) echo amd64 ;; aarch64) echo arm64 ;; esac).tar.gz | tar xz -C /usr/local
-ENV PATH=/usr/local/go/bin:$PATH
-RUN go mod download
+WORKDIR /work/ollama
+ARG RUST_VERSION=1.80.1
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal
+ENV PATH=/root/.cargo/bin:$PATH
+ARG VERSION
+ENV VERSION=${VERSION}
 COPY . .
-ARG GOFLAGS="'-ldflags=-w -s'"
-ENV CGO_ENABLED=1
-ARG CGO_CFLAGS
-ARG CGO_CXXFLAGS
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -buildmode=pie -o /bin/ollama .
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    cargo fetch
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    cargo build --release --bin ollama
+RUN install -Dm755 target/release/ollama /bin/ollama
 
 FROM --platform=linux/amd64 scratch AS amd64
 # COPY --from=cuda-11 dist/lib/ollama/ /lib/ollama/

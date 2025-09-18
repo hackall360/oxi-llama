@@ -1,8 +1,8 @@
 use std::{fs, path::PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
-use crate::tensor::{Tensor, BaseTensor};
+use crate::tensor::{BaseTensor, Tensor};
 
 /// Trait representing an abstract tensor reader.
 pub trait ModelReader {
@@ -21,7 +21,9 @@ pub struct FsReader {
 }
 
 impl FsReader {
-    pub fn new<P: Into<PathBuf>>(root: P) -> Self { Self { root: root.into() } }
+    pub fn new<P: Into<PathBuf>>(root: P) -> Self {
+        Self { root: root.into() }
+    }
 }
 
 impl ModelReader for FsReader {
@@ -37,11 +39,17 @@ impl ModelReader for FsReader {
                 for chunk in data.chunks(4) {
                     f32s.push(f32::from_le_bytes(chunk.try_into().unwrap()));
                 }
-                let t = BaseTensor::new(path.file_stem().unwrap().to_string_lossy(), vec![f32s.len() as u64], f32s);
+                let t = BaseTensor::new(
+                    path.file_stem().unwrap().to_string_lossy(),
+                    vec![f32s.len() as u64],
+                    f32s,
+                );
                 out.push(Box::new(t));
             }
         }
-        if out.is_empty() { bail!("unknown tensor format"); }
+        if out.is_empty() {
+            bail!("unknown tensor format");
+        }
         Ok(out)
     }
 }

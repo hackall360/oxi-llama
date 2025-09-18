@@ -1,18 +1,19 @@
 # Ollama API Examples
 
-Run the examples in this directory with:
+The Rust API crate contains runnable examples under `rust/api/examples`.
+Run an example from the repository root with:
 
 ```shell
-go run example_name/main.go
+cargo run --package api --example <example>
 ```
 
-## Chat - Chat with a model
-- [chat/main.go](chat/main.go)
+Available examples include:
 
-## Generate - Generate text from a model
-- [generate/main.go](generate/main.go)
-- [generate-streaming/main.go](generate-streaming/main.go)
-
-## Pull - Pull a model
-- [pull-progress/main.go](pull-progress/main.go)
+- `chat`
+- `generate`
+- `generate_streaming`
+- `multimodal`
+- `openai_chat`
+- `openai_completion`
+- `pull_progress`
 

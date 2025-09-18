@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use discover::{linux_cpu_details, SystemInfo, CPUInfo};
+use discover::{linux_cpu_details, CPUInfo, SystemInfo};
 #[cfg(target_os = "linux")]
 use std::io::BufReader;
 
@@ -63,6 +63,12 @@ core id     : 1
     assert_eq!(cpus[1].core_count, 2);
     assert_eq!(cpus[1].efficiency_core_count, 0);
     assert_eq!(cpus[1].thread_count, 4);
-    let si = SystemInfo { system: CPUInfo { cpus, ..Default::default() }, ..Default::default() };
+    let si = SystemInfo {
+        system: CPUInfo {
+            cpus,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     assert_eq!(si.get_optimal_thread_count(), 4);
 }

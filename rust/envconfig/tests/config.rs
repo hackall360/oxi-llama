@@ -33,7 +33,10 @@ fn test_host() {
         ("http://1.2.3.4:4321", "http://1.2.3.4:4321"),
         ("https://1.2.3.4", "https://1.2.3.4:443"),
         ("https://1.2.3.4:4321", "https://1.2.3.4:4321"),
-        ("https://example.com/ollama", "https://example.com:443/ollama"),
+        (
+            "https://example.com/ollama",
+            "https://example.com:443/ollama",
+        ),
     ];
 
     for (value, expect) in cases {

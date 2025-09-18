@@ -1,4 +1,4 @@
 pub mod modelfile;
 pub mod thinking;
 
-pub use modelfile::{Modelfile, Command, parse_file, expand_path};
+pub use modelfile::{Command, Modelfile, expand_path, parse_file};

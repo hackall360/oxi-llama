@@ -99,7 +99,11 @@ pub struct LlmServer {
 
 impl Default for LlmServer {
     fn default() -> Self {
-        Self { total_layers: 0, options: Options::default(), sem: Arc::new(Semaphore::new(1)) }
+        Self {
+            total_layers: 0,
+            options: Options::default(),
+            sem: Arc::new(Semaphore::new(1)),
+        }
     }
 }
 
@@ -110,7 +114,10 @@ pub struct OllamaServer {
 
 impl Default for OllamaServer {
     fn default() -> Self {
-        Self { llm: LlmServer::default(), mem: None }
+        Self {
+            llm: LlmServer::default(),
+            mem: None,
+        }
     }
 }
 
@@ -196,12 +203,8 @@ impl OllamaServer {
                     gl[i].mem_info.free_memory = 0;
                 }
             }
-            let library_gpu_layers = assign_layers(
-                &layers,
-                &gl,
-                self.llm.options.runner.num_gpu,
-                last_used_gpu,
-            );
+            let library_gpu_layers =
+                assign_layers(&layers, &gl, self.llm.options.runner.num_gpu, last_used_gpu);
             if library_gpu_layers.sum() > gpu_layers.sum() {
                 gpu_layers = library_gpu_layers;
             }
@@ -333,7 +336,11 @@ fn find_best_fit(
     requested_layers: i32,
     force_request: bool,
 ) -> GpuLayersList {
-    let mut high: f32 = if requested_layers >= 0 && force_request { 1000.0 } else { 1.0 };
+    let mut high: f32 = if requested_layers >= 0 && force_request {
+        1000.0
+    } else {
+        1.0
+    };
     let mut low: f32 = 0.0;
     let mut best = greedy_fit(layers, gpus, high, requested_layers);
     let max_num_gpu = best.sum();
@@ -363,7 +370,10 @@ fn greedy_fit(
         return Vec::new();
     }
     let mut device: isize = gpus.len() as isize - 1;
-    let mut list = vec![GpuLayers { id: gpus[device as usize].id.clone(), layers: Vec::new() }];
+    let mut list = vec![GpuLayers {
+        id: gpus[device as usize].id.clone(),
+        layers: Vec::new(),
+    }];
     let mut free_space = (gpus[device as usize].mem_info.free_memory as f32 * capacity) as u64;
     for i in (0..layers.len()).rev() {
         if requested_layers >= 0 && (layers.len() - 1 - i) >= requested_layers as usize {
@@ -380,7 +390,13 @@ fn greedy_fit(
                 list.retain(|g| !g.layers.is_empty());
                 return list;
             }
-            list.insert(0, GpuLayers { id: gpus[device as usize].id.clone(), layers: Vec::new() });
+            list.insert(
+                0,
+                GpuLayers {
+                    id: gpus[device as usize].id.clone(),
+                    layers: Vec::new(),
+                },
+            );
             free_space = (gpus[device as usize].mem_info.free_memory as f32 * capacity) as u64;
         }
     }

@@ -1,4 +1,4 @@
-use parser::{parse_file};
+use parser::parse_file;
 use std::io::Cursor;
 use std::path::PathBuf;
 
@@ -10,5 +10,8 @@ fn create_request_basic() {
     assert_eq!(req.template, "some template");
     assert_eq!(req.license.unwrap(), serde_json::json!(["MIT"]));
     assert_eq!(req.messages.len(), 1);
-    assert_eq!(req.parameters.get("temperature").unwrap(), &serde_json::json!(0.5));
+    assert_eq!(
+        req.parameters.get("temperature").unwrap(),
+        &serde_json::json!(0.5)
+    );
 }

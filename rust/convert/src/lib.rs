@@ -4,13 +4,13 @@ use std::path::Path;
 use anyhow::Result;
 use fs::gguf::{write_gguf, GgufFile, Value};
 
-pub mod tokenizer;
-pub mod tensor;
 pub mod reader;
+pub mod tensor;
+pub mod tokenizer;
 
+pub use reader::{FsReader, ModelReader, ModelWriter, VecWriter};
+pub use tensor::{BaseTensor, Repacker, Tensor, TensorKind};
 pub use tokenizer::{parse_tokenizer, SpecialVocabulary, Tokenizer, Vocabulary};
-pub use tensor::{Tensor, TensorKind, Repacker, BaseTensor};
-pub use reader::{ModelReader, ModelWriter, FsReader, VecWriter};
 
 /// Enumeration of model formats supported by the converter.
 #[derive(Debug, Clone)]

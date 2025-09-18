@@ -91,7 +91,11 @@ pub struct Message {
     pub tool_calls: Vec<ToolCall>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "tool_call_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "tool_call_id"
+    )]
     pub tool_call_id: Option<String>,
 }
 
@@ -111,9 +115,17 @@ pub struct ChatCompletionRequest {
     pub stop: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f64>,
-    #[serde(default, rename = "frequency_penalty", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "frequency_penalty",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub frequency_penalty: Option<f64>,
-    #[serde(default, rename = "presence_penalty", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "presence_penalty",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub presence_penalty: Option<f64>,
     #[serde(default, rename = "top_p", skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f64>,
@@ -123,7 +135,11 @@ pub struct ChatCompletionRequest {
     pub tools: Vec<api::Tool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<Reasoning>,
-    #[serde(default, rename = "reasoning_effort", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "reasoning_effort",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub reasoning_effort: Option<String>,
 }
 
@@ -316,7 +332,9 @@ pub fn from_chat_request(r: ChatCompletionRequest) -> Result<api::ChatRequest, E
             }
             Value::Array(arr) => {
                 for c in arr {
-                    let data = c.as_object().ok_or_else(|| new_error("invalid message format"))?;
+                    let data = c
+                        .as_object()
+                        .ok_or_else(|| new_error("invalid message format"))?;
                     match data.get("type").and_then(|v| v.as_str()) {
                         Some("text") => {
                             let text = data
@@ -333,11 +351,17 @@ pub fn from_chat_request(r: ChatCompletionRequest) -> Result<api::ChatRequest, E
                             });
                         }
                         Some("image_url") => {
-                            let url_val = data.get("image_url").ok_or_else(|| new_error("invalid message format"))?;
+                            let url_val = data
+                                .get("image_url")
+                                .ok_or_else(|| new_error("invalid message format"))?;
                             let url = if let Some(m) = url_val.as_object() {
-                                m.get("url").and_then(|v| v.as_str()).ok_or_else(|| new_error("invalid message format"))?
+                                m.get("url")
+                                    .and_then(|v| v.as_str())
+                                    .ok_or_else(|| new_error("invalid message format"))?
                             } else {
-                                url_val.as_str().ok_or_else(|| new_error("invalid message format"))?
+                                url_val
+                                    .as_str()
+                                    .ok_or_else(|| new_error("invalid message format"))?
                             };
 
                             let mut valid = false;
@@ -398,7 +422,10 @@ pub fn from_chat_request(r: ChatCompletionRequest) -> Result<api::ChatRequest, E
             }
             other => {
                 if msg.tool_calls.is_empty() {
-                    return Err(new_error(&format!("invalid message content type: {}", value_type(other))));
+                    return Err(new_error(&format!(
+                        "invalid message content type: {}",
+                        value_type(other)
+                    )));
                 }
                 let tool_calls = from_completion_tool_calls(&msg.tool_calls)?;
                 messages.push(ApiMessage {
@@ -495,7 +522,9 @@ fn value_type(v: &Value) -> &'static str {
     }
 }
 
-fn from_completion_tool_calls(tool_calls: &[ToolCall]) -> Result<Vec<api::ToolCall>, ErrorResponse> {
+fn from_completion_tool_calls(
+    tool_calls: &[ToolCall],
+) -> Result<Vec<api::ToolCall>, ErrorResponse> {
     let mut out = Vec::new();
     for tc in tool_calls {
         let mut args: HashMap<String, Value> = HashMap::new();
@@ -549,7 +578,12 @@ pub fn from_completion_request(
                 }
                 options.insert("stop".into(), Value::Array(stops));
             }
-            other => return Err(new_error(&format!("invalid type for 'stop' field: {}", value_type(&other)))),
+            other => {
+                return Err(new_error(&format!(
+                    "invalid type for 'stop' field: {}",
+                    value_type(&other)
+                )))
+            }
         }
     }
 
@@ -566,15 +600,12 @@ pub fn from_completion_request(
         options.insert("seed".into(), Value::from(seed));
     }
 
+    options.insert("frequency_penalty".into(), Value::from(r.frequency_penalty));
+    options.insert("presence_penalty".into(), Value::from(r.presence_penalty));
     options.insert(
-        "frequency_penalty".into(),
-        Value::from(r.frequency_penalty),
+        "top_p".into(),
+        Value::from(if r.top_p != 0.0 { r.top_p } else { 1.0 }),
     );
-    options.insert(
-        "presence_penalty".into(),
-        Value::from(r.presence_penalty),
-    );
-    options.insert("top_p".into(), Value::from(if r.top_p != 0.0 { r.top_p } else { 1.0 }));
 
     Ok(api::GenerateRequest {
         model: r.model,
@@ -686,9 +717,12 @@ fn to_tool_calls(tc: &[api::ToolCall]) -> Vec<ToolCall> {
 /// Convert an [`api::ChatResponse`] into an OpenAI ChatCompletion.
 pub fn to_chat_completion(id: &str, r: api::ChatResponse) -> ChatCompletion {
     let usage = to_usage_chat(&r);
-    let created = OffsetDateTime::parse(&r.created_at, &time::format_description::well_known::Rfc3339)
-        .map(|t| t.unix_timestamp())
-        .unwrap_or(0);
+    let created = OffsetDateTime::parse(
+        &r.created_at,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map(|t| t.unix_timestamp())
+    .unwrap_or(0);
     let model = r.model.clone();
     let done_reason = r.done_reason.clone();
     let message = r.message;
@@ -779,9 +813,12 @@ fn to_usage_generate(r: &api::GenerateResponse) -> Usage {
 /// Convert a [`api::GenerateResponse`] into an OpenAI completion.
 pub fn to_completion(id: &str, r: api::GenerateResponse) -> Completion {
     let usage = to_usage_generate(&r);
-    let created = OffsetDateTime::parse(&r.created_at, &time::format_description::well_known::Rfc3339)
-        .map(|t| t.unix_timestamp())
-        .unwrap_or(0);
+    let created = OffsetDateTime::parse(
+        &r.created_at,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map(|t| t.unix_timestamp())
+    .unwrap_or(0);
     let model = r.model.clone();
     let text = r.response.clone();
     let finish_reason = if r.done_reason.is_empty() {
@@ -853,4 +890,3 @@ pub fn to_embedding_list(model: &str, r: api::EmbedResponse) -> EmbeddingList {
         }),
     }
 }
-

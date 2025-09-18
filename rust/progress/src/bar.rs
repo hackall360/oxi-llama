@@ -1,8 +1,8 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use console::Term;
 use crate::progress::State;
+use console::Term;
 
 pub struct Bar {
     inner: Mutex<BarInner>,
@@ -34,11 +34,17 @@ impl Bar {
             initial_value,
             current_value: initial_value,
             started: Instant::now(),
-            stopped: if initial_value >= max_value { Some(Instant::now()) } else { None },
+            stopped: if initial_value >= max_value {
+                Some(Instant::now())
+            } else {
+                None
+            },
             buckets: Vec::new(),
             max_buckets: 10,
         };
-        Bar { inner: Mutex::new(inner) }
+        Bar {
+            inner: Mutex::new(inner),
+        }
     }
 
     pub fn set(&self, value: i64) {
@@ -50,8 +56,13 @@ impl Bar {
                 inner.stopped = Some(Instant::now());
             }
         }
-        if inner.buckets.is_empty() || inner.buckets.last().unwrap().updated.elapsed() > Duration::from_secs(1) {
-            inner.buckets.push(Bucket { updated: Instant::now(), value });
+        if inner.buckets.is_empty()
+            || inner.buckets.last().unwrap().updated.elapsed() > Duration::from_secs(1)
+        {
+            inner.buckets.push(Bucket {
+                updated: Instant::now(),
+                value,
+            });
             if inner.buckets.len() > inner.max_buckets {
                 inner.buckets.remove(0);
             }
@@ -77,7 +88,10 @@ impl Bar {
                 0 => {}
                 1 => {
                     numerator = (inner.buckets[0].value - inner.initial_value) as f64;
-                    denominator = inner.buckets[0].updated.duration_since(inner.started).as_secs_f64();
+                    denominator = inner.buckets[0]
+                        .updated
+                        .duration_since(inner.started)
+                        .as_secs_f64();
                 }
                 _ => {
                     let first = &inner.buckets[0];
@@ -87,7 +101,11 @@ impl Bar {
                 }
             }
         }
-        if denominator != 0.0 { numerator / denominator } else { 0.0 }
+        if denominator != 0.0 {
+            numerator / denominator
+        } else {
+            0.0
+        }
     }
 
     pub fn to_string(&self) -> String {
@@ -105,7 +123,9 @@ impl Bar {
             pre.push_str(&message);
             if inner.message_width > 0 {
                 let pad = inner.message_width as usize - message.len();
-                if pad > 0 { pre.push_str(&" ".repeat(pad)); }
+                if pad > 0 {
+                    pre.push_str(&" ".repeat(pad));
+                }
             }
             pre.push(' ');
         }
@@ -140,7 +160,8 @@ impl Bar {
 
         if inner.stopped.is_none() && rate > 0.0 {
             suf.push_str("  ");
-            let remaining = Duration::from_secs_f64((inner.max_value - inner.current_value) as f64 / rate);
+            let remaining =
+                Duration::from_secs_f64((inner.max_value - inner.current_value) as f64 / rate);
             let human_rem = format_duration(remaining);
             suf.push_str(&" ".repeat(6 - human_rem.len()));
             suf.push_str(&human_rem);
@@ -153,8 +174,12 @@ impl Bar {
         let f = if f > 0 { f as usize } else { 0 };
         let n = ((f as f64) * Bar::percent(&inner) / 100.0) as usize;
         mid.push_str(" ▕");
-        if n > 0 { mid.push_str(&"█".repeat(n)); }
-        if f > n { mid.push_str(&" ".repeat(f - n)); }
+        if n > 0 {
+            mid.push_str(&"█".repeat(n));
+        }
+        if f > n {
+            mid.push_str(&" ".repeat(f - n));
+        }
         mid.push_str("▏ ");
 
         format!("{}{}{}", pre, mid, suf)

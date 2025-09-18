@@ -11,28 +11,64 @@ pub fn get_cpu_mem() -> io::Result<MemInfo> {
     for line in reader.lines() {
         let line = line?;
         if let Some(rest) = line.strip_prefix("MemTotal:") {
-            let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+            let v: u64 = rest
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
             mem.total_memory = v * 1024;
         } else if let Some(rest) = line.strip_prefix("MemAvailable:") {
-            let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+            let v: u64 = rest
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
             mem.free_memory = v * 1024;
         } else if let Some(rest) = line.strip_prefix("MemFree:") {
             if mem.free_memory == 0 {
-                let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+                let v: u64 = rest
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("0")
+                    .parse()
+                    .unwrap_or(0);
                 mem.free_memory = v * 1024;
             }
         } else if let Some(rest) = line.strip_prefix("Buffers:") {
             if mem.free_memory == 0 {
-                let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+                let v: u64 = rest
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("0")
+                    .parse()
+                    .unwrap_or(0);
                 mem.free_memory += v * 1024;
             }
         } else if let Some(rest) = line.strip_prefix("Cached:") {
             if mem.free_memory == 0 {
-                let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+                let v: u64 = rest
+                    .trim()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("0")
+                    .parse()
+                    .unwrap_or(0);
                 mem.free_memory += v * 1024;
             }
         } else if let Some(rest) = line.strip_prefix("SwapFree:") {
-            let v: u64 = rest.trim().split_whitespace().next().unwrap_or("0").parse().unwrap_or(0);
+            let v: u64 = rest
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("0")
+                .parse()
+                .unwrap_or(0);
             mem.free_swap = v * 1024;
         }
     }
@@ -93,16 +129,14 @@ pub fn linux_cpu_details<R: BufRead>(reader: R) -> io::Result<Vec<CPU>> {
     let mut threads_by_core_by_socket: HashMap<String, HashMap<String, i32>> = HashMap::new();
     for c in cpu_infos {
         let socket = c.physical_id.clone();
-        socket_by_id
-            .entry(socket.clone())
-            .or_insert_with(|| CPU {
-                id: c.physical_id.clone(),
-                vendor_id: c.vendor_id.clone(),
-                model_name: c.model_name.clone(),
-                core_count: 0,
-                efficiency_core_count: 0,
-                thread_count: 0,
-            });
+        socket_by_id.entry(socket.clone()).or_insert_with(|| CPU {
+            id: c.physical_id.clone(),
+            vendor_id: c.vendor_id.clone(),
+            model_name: c.model_name.clone(),
+            core_count: 0,
+            efficiency_core_count: 0,
+            thread_count: 0,
+        });
         core_by_socket.entry(socket.clone()).or_default();
         threads_by_core_by_socket.entry(socket.clone()).or_default();
         let core_key = if !c.core_id.is_empty() {
@@ -132,7 +166,11 @@ pub fn linux_cpu_details<R: BufRead>(reader: R) -> io::Result<Vec<CPU>> {
             }
         }
         cpu.thread_count = total_threads as i32;
-        cpu.efficiency_core_count = if efficiency == cpu.core_count { 0 } else { efficiency };
+        cpu.efficiency_core_count = if efficiency == cpu.core_count {
+            0
+        } else {
+            efficiency
+        };
     }
 
     let mut keys: Vec<String> = socket_by_id.keys().cloned().collect();

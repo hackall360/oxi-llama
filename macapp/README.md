@@ -8,7 +8,7 @@ First, build the `ollama` binary:
 
 ```shell
 cd ..
-go build .
+cargo build --release --bin ollama
 ```
 
 Then run the desktop app with `npm start`:

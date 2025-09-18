@@ -12,7 +12,13 @@ pub fn schema_to_grammar_safe(schema: &str) -> Option<Vec<u8>> {
     // similar heuristic to llama.go
     let max_len = std::cmp::max(32 * 1024, std::cmp::min(1024 * 1024, schema.len() * 4));
     let mut buf = vec![0u8; max_len];
-    let n = unsafe { schema_to_grammar(c_schema.as_ptr(), buf.as_mut_ptr() as *mut ::std::os::raw::c_char, max_len) };
+    let n = unsafe {
+        schema_to_grammar(
+            c_schema.as_ptr(),
+            buf.as_mut_ptr() as *mut ::std::os::raw::c_char,
+            max_len,
+        )
+    };
     if n <= 0 {
         None
     } else {

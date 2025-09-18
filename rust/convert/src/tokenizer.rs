@@ -74,11 +74,27 @@ pub fn parse_tokenizer<P: AsRef<Path>>(dir: P, _special_token_types: &[&str]) ->
     let mut tokens: BTreeMap<i32, Token> = BTreeMap::new();
     if let Some(model) = tj.model {
         for (content, id) in model.vocab {
-            tokens.insert(id, Token { id, content, special: false, user_defined: false });
+            tokens.insert(
+                id,
+                Token {
+                    id,
+                    content,
+                    special: false,
+                    user_defined: false,
+                },
+            );
         }
     }
     for t in tj.added_tokens {
-        tokens.insert(t.id, Token { id: t.id, content: t.content, special: t.special, user_defined: true });
+        tokens.insert(
+            t.id,
+            Token {
+                id: t.id,
+                content: t.content,
+                special: t.special,
+                user_defined: true,
+            },
+        );
     }
 
     let mut vocab_tokens = Vec::new();
@@ -87,10 +103,21 @@ pub fn parse_tokenizer<P: AsRef<Path>>(dir: P, _special_token_types: &[&str]) ->
     for token in tokens.values() {
         vocab_tokens.push(token.content.clone());
         scores.push(token.id as f32);
-        let ty = if token.special { 3 } else if token.user_defined { 4 } else { 1 };
+        let ty = if token.special {
+            3
+        } else if token.user_defined {
+            4
+        } else {
+            1
+        };
         types.push(ty);
     }
-    let vocabulary = Vocabulary { model: "gpt2".into(), tokens: vocab_tokens, scores, types };
+    let vocabulary = Vocabulary {
+        model: "gpt2".into(),
+        tokens: vocab_tokens,
+        scores,
+        types,
+    };
 
     // tokenizer_config.json may contain chat_template
     let mut template = String::new();

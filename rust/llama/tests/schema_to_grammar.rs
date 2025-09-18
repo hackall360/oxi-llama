@@ -48,7 +48,8 @@ const ISSUE7978_JSON_SCHEMA: &str = r#"{
 
 #[test]
 fn test_issue7978() {
-    let g = schema_to_grammar_safe(ISSUE7978_JSON_SCHEMA).expect("failed to convert JSON schema to grammar");
+    let g = schema_to_grammar_safe(ISSUE7978_JSON_SCHEMA)
+        .expect("failed to convert JSON schema to grammar");
     let text = String::from_utf8(g).unwrap();
 
     let mut got = String::new();
@@ -66,19 +67,37 @@ fn test_issue7978() {
 
 #[test]
 fn test_schema_to_grammar() {
-    struct Case { schema: &'static str, prefix: Option<&'static [u8]> }
+    struct Case {
+        schema: &'static str,
+        prefix: Option<&'static [u8]>,
+    }
     let cases = [
-        Case { schema: "invalid", prefix: None },
-        Case { schema: "{\"type\":\"object\"}", prefix: Some(b"root ::= object") },
+        Case {
+            schema: "invalid",
+            prefix: None,
+        },
+        Case {
+            schema: "{\"type\":\"object\"}",
+            prefix: Some(b"root ::= object"),
+        },
     ];
     for c in &cases {
         let g = schema_to_grammar_safe(c.schema);
         match (g, c.prefix) {
-            (None, None) => {},
+            (None, None) => {}
             (Some(buf), Some(prefix)) => {
-                assert!(buf.starts_with(prefix), "grammar = {:?}, want prefix {:?}", String::from_utf8_lossy(&buf), String::from_utf8_lossy(prefix));
-            },
-            (other, expected) => panic!("unexpected combination: got {:?}, want {:?}", other.is_some(), expected.is_some()),
+                assert!(
+                    buf.starts_with(prefix),
+                    "grammar = {:?}, want prefix {:?}",
+                    String::from_utf8_lossy(&buf),
+                    String::from_utf8_lossy(prefix)
+                );
+            }
+            (other, expected) => panic!(
+                "unexpected combination: got {:?}, want {:?}",
+                other.is_some(),
+                expected.is_some()
+            ),
         }
     }
 }

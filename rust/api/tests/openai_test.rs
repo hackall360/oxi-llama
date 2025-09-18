@@ -1,11 +1,12 @@
+use api;
 use api::openai::*;
-use api as api;
-use serde_json::json;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use serde_json::json;
 
 const PREFIX: &str = "data:image/jpeg;base64,";
-const IMAGE: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const IMAGE: &str =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 #[test]
 fn test_from_chat_request() {
@@ -471,7 +472,7 @@ fn test_from_completion_request() {
                     m.insert("presence_penalty".into(), json!(0.0));
                     m.insert("temperature".into(), json!(0.8));
                     m.insert("top_p".into(), json!(1.0));
-                    m.insert("stop".into(), json!(["\n","stop"]));
+                    m.insert("stop".into(), json!(["\n", "stop"]));
                     m
                 },
                 ..Default::default()
@@ -491,7 +492,7 @@ fn test_from_completion_request() {
                     m.insert("presence_penalty".into(), json!(0.0));
                     m.insert("temperature".into(), json!(0.8));
                     m.insert("top_p".into(), json!(1.0));
-                    m.insert("stop".into(), json!(["\n","stop"]));
+                    m.insert("stop".into(), json!(["\n", "stop"]));
                     m
                 },
                 ..Default::default()
@@ -565,4 +566,3 @@ fn test_to_list_and_model() {
     assert_eq!(m.id, "test-model");
     assert_eq!(m.object, "model");
 }
-

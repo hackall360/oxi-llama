@@ -63,3 +63,7 @@ server = { path = "rust/server" }
 template = { path = "rust/template" }
 tools = { path = "rust/tools" }
 version = { path = "rust/version" }
+
+[[bin]]
+name = "ollama"
+path = "src/main.rs"

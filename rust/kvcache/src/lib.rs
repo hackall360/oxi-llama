@@ -11,7 +11,10 @@ pub struct Tensor {
 
 impl Tensor {
     pub fn new(data: Vec<f32>, shape: &[usize]) -> Self {
-        Self { data, shape: shape.to_vec() }
+        Self {
+            data,
+            shape: shape.to_vec(),
+        }
     }
 
     pub fn from_slice(data: &[f32], shape: &[usize]) -> Self {
@@ -73,9 +76,25 @@ impl Causal {
             heads: 0,
         }
     }
-    pub fn new_swa(window: i32) -> Self { Self { swa_window_size: window, ..Self::new() } }
-    pub fn new_swa_mem(window: i32, mem: i32) -> Self { Self { swa_window_size: window, swa_memory_size: mem, ..Self::new() } }
-    pub fn new_chunked(chunk: i32) -> Self { Self { chunk_size: chunk, ..Self::new() } }
+    pub fn new_swa(window: i32) -> Self {
+        Self {
+            swa_window_size: window,
+            ..Self::new()
+        }
+    }
+    pub fn new_swa_mem(window: i32, mem: i32) -> Self {
+        Self {
+            swa_window_size: window,
+            swa_memory_size: mem,
+            ..Self::new()
+        }
+    }
+    pub fn new_chunked(chunk: i32) -> Self {
+        Self {
+            chunk_size: chunk,
+            ..Self::new()
+        }
+    }
 
     pub fn init(&mut self, _dtype: DType, _max_seq: usize, _capacity: usize, _max_batch: usize) {}
 
@@ -265,4 +284,3 @@ impl EncoderCache {
         }
     }
 }
-
