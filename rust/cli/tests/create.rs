@@ -5,7 +5,8 @@ use std::fs::File;
 #[test]
 fn create_missing_modelfile() {
     let mut cmd = Command::cargo_bin("cli").unwrap();
-    cmd.arg("create").arg("testmodel")
+    cmd.arg("create")
+        .arg("testmodel")
         .assert()
         .failure()
         .stderr(contains("specified Modelfile wasn't found"));
@@ -26,7 +27,10 @@ fn create_with_modelfile() {
 
 #[test]
 fn unicode_model_dir() {
-    let dir = tempfile::Builder::new().prefix("ollama_埃").tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .prefix("ollama_埃")
+        .tempdir()
+        .unwrap();
     let mut cmd = Command::cargo_bin("cli").unwrap();
     cmd.current_dir(dir.path())
         .arg("create")

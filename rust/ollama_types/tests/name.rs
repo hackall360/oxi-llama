@@ -1,9 +1,10 @@
-use std::path::PathBuf;
 use ollama_types::model::{
     is_valid_namespace, parse_name, parse_name_bare, parse_name_from_filepath, Name,
 };
+use std::path::PathBuf;
 
-const PART80: &str = "88888888888888888888888888888888888888888888888888888888888888888888888888888888";
+const PART80: &str =
+    "88888888888888888888888888888888888888888888888888888888888888888888888888888888";
 
 fn join(parts: &[&str]) -> PathBuf {
     let mut pb = PathBuf::new();
@@ -113,7 +114,12 @@ fn parse_name_parts() {
         let got = parse_name_bare(&case.input);
         assert_eq!(got, case.want, "parse_name_bare {}", case.input);
         let merged = parse_name(&case.input);
-        assert_eq!(merged.filepath(), case.filepath, "filepath for {}", case.input);
+        assert_eq!(
+            merged.filepath(),
+            case.filepath,
+            "filepath for {}",
+            case.input
+        );
     }
 }
 
@@ -121,15 +127,34 @@ fn parse_name_parts() {
 fn parse_name_from_filepath_test() {
     let cases: Vec<(String, Name)> = vec![
         (
-            join(&["host", "namespace", "model", "tag"]).to_str().unwrap().to_string(),
-            Name { host: "host".into(), namespace: "namespace".into(), model: "model".into(), tag: "tag".into() },
+            join(&["host", "namespace", "model", "tag"])
+                .to_str()
+                .unwrap()
+                .to_string(),
+            Name {
+                host: "host".into(),
+                namespace: "namespace".into(),
+                model: "model".into(),
+                tag: "tag".into(),
+            },
         ),
         (
-            join(&["host:port", "namespace", "model", "tag"]).to_str().unwrap().to_string(),
-            Name { host: "host:port".into(), namespace: "namespace".into(), model: "model".into(), tag: "tag".into() },
+            join(&["host:port", "namespace", "model", "tag"])
+                .to_str()
+                .unwrap()
+                .to_string(),
+            Name {
+                host: "host:port".into(),
+                namespace: "namespace".into(),
+                model: "model".into(),
+                tag: "tag".into(),
+            },
         ),
         (
-            join(&["namespace", "model", "tag"]).to_str().unwrap().to_string(),
+            join(&["namespace", "model", "tag"])
+                .to_str()
+                .unwrap()
+                .to_string(),
             Name::default(),
         ),
         (
@@ -148,7 +173,10 @@ fn display_shortest() {
     let cases = vec![
         ("registry.ollama.ai/library/model:latest", "model:latest"),
         ("registry.ollama.ai/library/model:tag", "model:tag"),
-        ("registry.ollama.ai/namespace/model:tag", "namespace/model:tag"),
+        (
+            "registry.ollama.ai/namespace/model:tag",
+            "namespace/model:tag",
+        ),
         ("host/namespace/model:tag", "host/namespace/model:tag"),
     ];
     for (input, want) in cases {

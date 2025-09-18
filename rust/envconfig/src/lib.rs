@@ -1,8 +1,8 @@
+use logutil::warn;
 use std::env;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
-use logutil::warn;
 
 /// Returns the scheme and host. Host can be configured via the OLLAMA_HOST environment variable.
 /// Default is scheme "http" and host "127.0.0.1:11434".
@@ -12,8 +12,11 @@ pub fn host() -> String {
     let s = var("OLLAMA_HOST").trim().to_string();
     let (scheme, rest) = match s.split_once("://") {
         Some((sch, hp)) => {
-            if sch == "http" { default_port = "80".into(); }
-            else if sch == "https" { default_port = "443".into(); }
+            if sch == "http" {
+                default_port = "80".into();
+            } else if sch == "https" {
+                default_port = "443".into();
+            }
             (sch.to_string(), hp.to_string())
         }
         None => ("http".into(), s),

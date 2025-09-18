@@ -14,13 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     outputs:
-      GOFLAGS: ${{ steps.goflags.outputs.GOFLAGS }}
+      VERSION: ${{ steps.version.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
       - name: Set environment
-        id: goflags
-        run: |
-          echo GOFLAGS="'-ldflags=-w -s \"-X=github.com/ollama/ollama/version.Version=${GITHUB_REF_NAME#v}\" \"-X=github.com/ollama/ollama/server.mode=release\"'" >>$GITHUB_OUTPUT
+        id: version
+        run: echo VERSION="${GITHUB_REF_NAME#v}" >>$GITHUB_OUTPUT
 
   darwin-build:
     runs-on: macos-13-xlarge
@@ -31,19 +30,21 @@ jobs:
         os: [darwin]
         arch: [amd64, arm64]
     env:
-      GOFLAGS: ${{ needs.setup-environment.outputs.GOFLAGS }}
+      VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          go-version-file: go.mod
-      - run: |
-          go build -o dist/ .
+          targets: ${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+      - name: build cargo binary
+        run: |
+          set -eux
+          TARGET_TRIPLE=${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+          export MACOSX_DEPLOYMENT_TARGET=11.3
+          cargo build --release --bin ollama --target "$TARGET_TRIPLE"
+          install -Dm755 "target/$TARGET_TRIPLE/release/ollama" "dist/${{ matrix.os }}-${{ matrix.arch }}/ollama"
         env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: 1
-          CGO_CPPFLAGS: '-mmacosx-version-min=11.3'
+          VERSION: ${{ env.VERSION }}
       - if: matrix.arch == 'amd64'
         run: |
           cmake --preset CPU -DCMAKE_OSX_DEPLOYMENT_TARGET=11.3 -DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_OSX_ARCHITECTURES=x86_64
@@ -98,7 +99,7 @@ jobs:
     runs-on: ${{ matrix.arch == 'arm64' && format('{0}-{1}', matrix.os, matrix.arch) || matrix.os }}
     environment: release
     env:
-      GOFLAGS: ${{ needs.setup-environment.outputs.GOFLAGS }}
+      VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - name: Install system dependencies
         run: |
@@ -179,7 +180,7 @@ jobs:
     environment: release
     needs: [setup-environment]
     env:
-      GOFLAGS: ${{ needs.setup-environment.outputs.GOFLAGS }}
+      VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - name: Install AMD64 system dependencies
         if: matrix.arch == 'amd64'
@@ -205,11 +206,20 @@ jobs:
           $installPath=(Resolve-Path -Path "C:\Program Files\llvm-mingw-*-ucrt-aarch64").path
           echo $installPath\bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          go-version-file: go.mod
-      - run: |
-          go build -o dist/${{ matrix.os }}-${{ matrix.arch }}/ .
+          targets: ${{ matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
+      - name: build cargo binary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $target = if ('${{ matrix.arch }}' -eq 'arm64') { 'aarch64-pc-windows-msvc' } else { 'x86_64-pc-windows-msvc' }
+          rustup target add $target | Out-Null
+          cargo build --release --bin ollama --target $target
+          New-Item -ItemType Directory -Force -Path "dist/${{ matrix.os }}-${{ matrix.arch }}" | Out-Null
+          Copy-Item "target/$target/release/ollama.exe" "dist/${{ matrix.os }}-${{ matrix.arch }}\" -Force
+        env:
+          VERSION: ${{ env.VERSION }}
       - uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}-${{ matrix.arch }}
@@ -233,7 +243,7 @@ jobs:
     environment: release
     needs: setup-environment
     env:
-      GOFLAGS: ${{ needs.setup-environment.outputs.GOFLAGS }}
+      VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -243,9 +253,7 @@ jobs:
           platforms: ${{ matrix.os }}/${{ matrix.arch }}
           target: ${{ matrix.target }}
           build-args: |
-            GOFLAGS=${{ env.GOFLAGS }}
-            CGO_CFLAGS=${{ env.CGO_CFLAGS }}
-            CGO_CXXFLAGS=${{ env.CGO_CXXFLAGS }}
+            VERSION=${{ env.VERSION }}
           outputs: type=local,dest=dist/${{ matrix.os }}-${{ matrix.arch }}
           cache-from: type=registry,ref=${{ vars.DOCKER_REPO }}:latest
           cache-to: type=inline
@@ -284,29 +292,22 @@ jobs:
         include:
           - os: linux
             arch: arm64
-            build-args: |
-              CGO_CFLAGS
-              CGO_CXXFLAGS
-              GOFLAGS
+            suffix: ''
+            build-args: ""
           - os: linux
             arch: amd64
-            build-args: |
-              CGO_CFLAGS
-              CGO_CXXFLAGS
-              GOFLAGS
+            suffix: ''
+            build-args: ""
           - os: linux
             arch: amd64
             suffix: '-rocm'
             build-args: |
-              CGO_CFLAGS
-              CGO_CXXFLAGS
-              GOFLAGS
               FLAVOR=rocm
     runs-on: ${{ matrix.arch == 'arm64' && format('{0}-{1}', matrix.os, matrix.arch) || matrix.os }}
     environment: release
     needs: setup-environment
     env:
-      GOFLAGS: ${{ needs.setup-environment.outputs.GOFLAGS }}
+      VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -319,7 +320,9 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.os }}/${{ matrix.arch }}
-          build-args: ${{ matrix.build-args }}
+          build-args: |
+            VERSION=${{ env.VERSION }}
+            ${{ matrix.build-args }}
           outputs: type=image,name=${{ vars.DOCKER_REPO }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=${{ vars.DOCKER_REPO }}:latest
           cache-to: type=inline

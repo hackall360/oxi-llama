@@ -1,7 +1,7 @@
 use std::{fs::File, io::Write};
 
-use convert::tensor::{BaseTensor, Tensor, TensorKind};
 use convert::reader::{FsReader, ModelReader};
+use convert::tensor::{BaseTensor, Tensor, TensorKind};
 
 #[test]
 fn tensor_kind_from_shape() {

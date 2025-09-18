@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 
+use convert::{ModelFormat, convert_model};
 pub use envconfig;
-use convert::{convert_model, ModelFormat};
 use version::Version;
 
 #[derive(Parser)]

@@ -3,11 +3,11 @@ use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
-use walkdir::WalkDir;
 use users::{get_current_uid, get_user_by_name, get_user_by_uid, os::unix::UserExt};
+use walkdir::WalkDir;
 
 use serde_json::Value;
 
@@ -46,19 +46,23 @@ pub enum ParserError {
     MissingFrom,
     #[error("message role must be one of \"system\", \"user\", or \"assistant\"")]
     InvalidMessageRole,
-    #[error("command must be one of \"from\", \"license\", \"template\", \"system\", \"adapter\", \"parameter\", or \"message\"")]
+    #[error(
+        "command must be one of \"from\", \"license\", \"template\", \"system\", \"adapter\", \"parameter\", or \"message\""
+    )]
     InvalidCommand,
     #[error("unexpected end of file")]
     UnexpectedEOF,
 }
 
 fn is_valid_command(cmd: &str) -> bool {
-    matches!(cmd.to_lowercase().as_str(),
-        "from"|"license"|"template"|"system"|"adapter"|"parameter"|"message")
+    matches!(
+        cmd.to_lowercase().as_str(),
+        "from" | "license" | "template" | "system" | "adapter" | "parameter" | "message"
+    )
 }
 
 fn is_valid_role(role: &str) -> bool {
-    matches!(role, "system"|"user"|"assistant")
+    matches!(role, "system" | "user" | "assistant")
 }
 
 /// Parse a Modelfile from a reader
@@ -71,10 +75,16 @@ pub fn parse_file<R: Read>(r: R) -> Result<Modelfile> {
     while let Some(line) = lines.next() {
         let mut line = line?;
         // remove carriage return for windows line endings
-        if line.ends_with('\r') { line.pop(); }
+        if line.ends_with('\r') {
+            line.pop();
+        }
         let trimmed = line.trim();
-        if trimmed.is_empty() { continue; }
-        if trimmed.starts_with('#') { continue; }
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with('#') {
+            continue;
+        }
 
         let mut parts = trimmed.splitn(2, char::is_whitespace);
         let cmd = parts.next().unwrap();
@@ -83,12 +93,18 @@ pub fn parse_file<R: Read>(r: R) -> Result<Modelfile> {
         match cmd.to_lowercase().as_str() {
             "from" => {
                 let arg = parse_arg(rest, &mut lines)?;
-                commands.push(Command { name: "model".into(), args: arg.clone() });
+                commands.push(Command {
+                    name: "model".into(),
+                    args: arg.clone(),
+                });
                 seen_from = true;
             }
             "adapter" | "license" | "template" | "system" => {
                 let arg = parse_arg(rest, &mut lines)?;
-                commands.push(Command { name: cmd.to_lowercase(), args: arg });
+                commands.push(Command {
+                    name: cmd.to_lowercase(),
+                    args: arg,
+                });
             }
             "message" => {
                 let mut subparts = rest.splitn(2, char::is_whitespace);
@@ -98,7 +114,10 @@ pub fn parse_file<R: Read>(r: R) -> Result<Modelfile> {
                 }
                 let msg_rest = subparts.next().unwrap_or("").trim_start();
                 let msg = parse_arg(msg_rest, &mut lines)?;
-                commands.push(Command { name: "message".into(), args: format!("{}: {}", role, msg) });
+                commands.push(Command {
+                    name: "message".into(),
+                    args: format!("{}: {}", role, msg),
+                });
             }
             "parameter" => {
                 let mut subparts = rest.splitn(2, char::is_whitespace);
@@ -151,7 +170,7 @@ where
         bail!(ParserError::UnexpectedEOF);
     } else if first.starts_with('"') {
         if let Some(idx) = first[1..].find('"') {
-            return Ok(first[1..1+idx].to_string());
+            return Ok(first[1..1 + idx].to_string());
         }
         bail!(ParserError::UnexpectedEOF);
     } else {
@@ -161,19 +180,29 @@ where
 
 /// Expand a path relative to `relative_dir` resolving `~` and `~user` prefixes.
 pub fn expand_path<P: AsRef<Path>, Q: AsRef<Path>>(path: P, relative_dir: Q) -> Result<PathBuf> {
-    expand_path_impl(path.as_ref(), relative_dir.as_ref(), || {
-        let uid = get_current_uid();
-        get_user_by_uid(uid)
-            .map(|u| PathBuf::from(u.home_dir()))
-            .ok_or_else(|| anyhow::anyhow!("failed to get current user"))
-    }, |name| {
-        get_user_by_name(name)
-            .map(|u| PathBuf::from(u.home_dir()))
-            .ok_or_else(|| anyhow::anyhow!("failed to find user"))
-    })
+    expand_path_impl(
+        path.as_ref(),
+        relative_dir.as_ref(),
+        || {
+            let uid = get_current_uid();
+            get_user_by_uid(uid)
+                .map(|u| PathBuf::from(u.home_dir()))
+                .ok_or_else(|| anyhow::anyhow!("failed to get current user"))
+        },
+        |name| {
+            get_user_by_name(name)
+                .map(|u| PathBuf::from(u.home_dir()))
+                .ok_or_else(|| anyhow::anyhow!("failed to find user"))
+        },
+    )
 }
 
-pub(crate) fn expand_path_impl<F, G>(path: &Path, relative_dir: &Path, current_home: F, lookup_home: G) -> Result<PathBuf>
+pub(crate) fn expand_path_impl<F, G>(
+    path: &Path,
+    relative_dir: &Path,
+    current_home: F,
+    lookup_home: G,
+) -> Result<PathBuf>
 where
     F: Fn() -> Result<PathBuf>,
     G: Fn(&str) -> Result<PathBuf>,
@@ -185,7 +214,7 @@ where
         let rest = &path_str[1..];
         let sep_idx = rest.find(|c| c == '/' || c == '\\');
         let (user_part, remaining) = match sep_idx {
-            Some(i) => (&rest[..i], &rest[i+1..]),
+            Some(i) => (&rest[..i], &rest[i + 1..]),
             None => (rest, ""),
         };
         if user_part.is_empty() {
@@ -201,7 +230,8 @@ where
         } else if relative_dir.is_absolute() {
             relative_dir.to_path_buf()
         } else {
-            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+            std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
                 .join(relative_dir)
         };
         base.join(path)
@@ -274,7 +304,10 @@ impl Modelfile {
                 "license" => licenses.push(c.args.clone()),
                 "message" => {
                     if let Some((role, content)) = c.args.split_once(':') {
-                        messages.push(Message { role: role.trim().into(), content: content.trim().into() });
+                        messages.push(Message {
+                            role: role.trim().into(),
+                            content: content.trim().into(),
+                        });
                     }
                 }
                 other => {
@@ -290,17 +323,29 @@ impl Modelfile {
                 }
             }
         }
-        if !messages.is_empty() { req.messages = messages; }
-        if !licenses.is_empty() { req.license = Some(Value::Array(licenses.into_iter().map(Value::String).collect())); }
-        if !params.is_empty() { req.parameters = params; }
+        if !messages.is_empty() {
+            req.messages = messages;
+        }
+        if !licenses.is_empty() {
+            req.license = Some(Value::Array(
+                licenses.into_iter().map(Value::String).collect(),
+            ));
+        }
+        if !params.is_empty() {
+            req.parameters = params;
+        }
         Ok(req)
     }
 }
 
 fn parse_param_value(s: &str) -> Value {
-    if let Ok(i) = s.parse::<i64>() { Value::from(i) }
-    else if let Ok(f) = s.parse::<f64>() { Value::from(f) }
-    else { Value::String(s.to_string()) }
+    if let Ok(i) = s.parse::<i64>() {
+        Value::from(i)
+    } else if let Ok(f) = s.parse::<f64>() {
+        Value::from(f)
+    } else {
+        Value::String(s.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -327,27 +372,69 @@ mod tests {
     fn expand_path_tilde() {
         let mock_current = || Ok(PathBuf::from("/home/testuser"));
         let mock_lookup = |name: &str| -> Result<PathBuf> {
-            if name == "another" { Ok(PathBuf::from("/home/another")) } else { Err(anyhow::anyhow!("user not found")) }
+            if name == "another" {
+                Ok(PathBuf::from("/home/another"))
+            } else {
+                Err(anyhow::anyhow!("user not found"))
+            }
         };
-        let p = super::expand_path_impl(Path::new("~another/docs"), Path::new(""), mock_current, mock_lookup).unwrap();
+        let p = super::expand_path_impl(
+            Path::new("~another/docs"),
+            Path::new(""),
+            mock_current,
+            mock_lookup,
+        )
+        .unwrap();
         assert_eq!(p, PathBuf::from("/home/another/docs"));
     }
 
     #[test]
     fn expand_path_cases() {
-        if cfg!(windows) { return; }
+        if cfg!(windows) {
+            return;
+        }
         let pwd = std::env::current_dir().unwrap();
         let cases = vec![
             ("~", "", PathBuf::from("/home/testuser"), false),
-            ("~/myfolder/myfile.txt", "", PathBuf::from("/home/testuser/myfolder/myfile.txt"), false),
-            ("~anotheruser/docs/file.txt", "", PathBuf::from("/home/anotheruser/docs/file.txt"), false),
+            (
+                "~/myfolder/myfile.txt",
+                "",
+                PathBuf::from("/home/testuser/myfolder/myfile.txt"),
+                false,
+            ),
+            (
+                "~anotheruser/docs/file.txt",
+                "",
+                PathBuf::from("/home/anotheruser/docs/file.txt"),
+                false,
+            ),
             ("~nonexistentuser/file.txt", "", PathBuf::new(), true),
-            ("relative/path/to/file", "", pwd.join("relative/path/to/file"), false),
-            ("/absolute/path/to/file", "", PathBuf::from("/absolute/path/to/file"), false),
-            ("/absolute/path/to/file", "someotherdir/", PathBuf::from("/absolute/path/to/file"), false),
+            (
+                "relative/path/to/file",
+                "",
+                pwd.join("relative/path/to/file"),
+                false,
+            ),
+            (
+                "/absolute/path/to/file",
+                "",
+                PathBuf::from("/absolute/path/to/file"),
+                false,
+            ),
+            (
+                "/absolute/path/to/file",
+                "someotherdir/",
+                PathBuf::from("/absolute/path/to/file"),
+                false,
+            ),
             (".", pwd.to_str().unwrap(), pwd.clone(), false),
             (".", "", pwd.clone(), false),
-            ("somefile", "somedir", pwd.join("somedir").join("somefile"), false),
+            (
+                "somefile",
+                "somedir",
+                pwd.join("somedir").join("somefile"),
+                false,
+            ),
         ];
         for (path, rel, expected, should_err) in cases {
             let res = super::expand_path_impl(
@@ -358,7 +445,7 @@ mod tests {
                     "testuser" => Ok(PathBuf::from("/home/testuser")),
                     "anotheruser" => Ok(PathBuf::from("/home/anotheruser")),
                     _ => Err(anyhow::anyhow!("user not found")),
-                }
+                },
             );
             if should_err {
                 assert!(res.is_err());

@@ -1,6 +1,6 @@
 pub mod bar;
-pub mod spinner;
 mod progress;
+pub mod spinner;
 
 pub use bar::Bar;
 pub use progress::{Progress, State};

@@ -1,6 +1,6 @@
 use crate::{GpuInfo, MemInfo};
-use sysinfo::SystemExt;
 use std::mem::size_of;
+use sysinfo::SystemExt;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -54,10 +54,11 @@ pub fn process_system_logical_processor_information_list(buf: &[u8]) -> Vec<WinP
     // first pass: collect packages
     while offset < buf.len() {
         unsafe {
-            let header = &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
+            let header =
+                &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
             if header.relationship == RELATION_PROCESSOR_PACKAGE {
-                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..].as_ptr()
-                    as *const ProcessorRelationship;
+                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..]
+                    .as_ptr() as *const ProcessorRelationship;
                 let pr = &*pr_ptr;
                 let mut pkg = WinPackage::default();
                 let mut ga_ptr = pr.group_mask.as_ptr();
@@ -76,10 +77,11 @@ pub fn process_system_logical_processor_information_list(buf: &[u8]) -> Vec<WinP
     offset = 0;
     while offset < buf.len() {
         unsafe {
-            let header = &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
+            let header =
+                &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
             if header.relationship == RELATION_PROCESSOR_CORE {
-                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..].as_ptr()
-                    as *const ProcessorRelationship;
+                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..]
+                    .as_ptr() as *const ProcessorRelationship;
                 let pr = &*pr_ptr;
                 if pr.efficiency_class > max_eff {
                     max_eff = pr.efficiency_class;
@@ -93,10 +95,11 @@ pub fn process_system_logical_processor_information_list(buf: &[u8]) -> Vec<WinP
     offset = 0;
     while offset < buf.len() {
         unsafe {
-            let header = &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
+            let header =
+                &*(buf[offset..].as_ptr() as *const SystemLogicalProcessorInformationExHeader);
             if header.relationship == RELATION_PROCESSOR_CORE {
-                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..].as_ptr()
-                    as *const ProcessorRelationship;
+                let pr_ptr = buf[offset + size_of::<SystemLogicalProcessorInformationExHeader>()..]
+                    .as_ptr() as *const ProcessorRelationship;
                 let pr = &*pr_ptr;
                 let mut ga_ptr = pr.group_mask.as_ptr();
                 for _ in 0..pr.group_count {
@@ -136,5 +139,9 @@ pub fn get_cpu_mem() -> std::io::Result<MemInfo> {
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {
     let mem = get_cpu_mem().unwrap_or_default();
-    vec![GpuInfo { mem_info: mem, library: "cpu".into(), ..Default::default() }]
+    vec![GpuInfo {
+        mem_info: mem,
+        library: "cpu".into(),
+        ..Default::default()
+    }]
 }

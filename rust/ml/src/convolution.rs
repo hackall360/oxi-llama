@@ -1,4 +1,4 @@
-use ndarray::{Array2, s};
+use ndarray::{s, Array2};
 
 /// A very small 2D convolution helper without padding or stride.
 pub fn conv2d(input: &Array2<f32>, kernel: &Array2<f32>) -> Array2<f32> {
@@ -23,11 +23,7 @@ mod tests {
 
     #[test]
     fn test_conv2d() {
-        let input = array![
-            [1., 2., 3.],
-            [4., 5., 6.],
-            [7., 8., 9.]
-        ];
+        let input = array![[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]];
         let kernel = array![[1., 0.], [0., -1.]];
         let out = conv2d(&input, &kernel);
         assert_eq!(out, array![[-4., -4.], [-4., -4.]]);

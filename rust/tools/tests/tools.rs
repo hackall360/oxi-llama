@@ -1,19 +1,73 @@
-use std::collections::HashMap;
+use api::{Tool, ToolCall, ToolCallFunction, ToolFunction, ToolFunctionParameters};
 use serde_json::json;
-use api::{Tool, ToolFunction, ToolFunctionParameters, ToolCall, ToolCallFunction};
+use std::collections::HashMap;
 use tools::Parser;
 
 fn tools_list() -> Vec<Tool> {
     fn params() -> ToolFunctionParameters {
-        ToolFunctionParameters { type_field: "object".to_string(), defs: None, items: None, required: vec![], properties: HashMap::new() }
+        ToolFunctionParameters {
+            type_field: "object".to_string(),
+            defs: None,
+            items: None,
+            required: vec![],
+            properties: HashMap::new(),
+        }
     }
     vec![
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "get_temperature".to_string(), description: String::new(), parameters: params() } },
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "get_conditions".to_string(), description: String::new(), parameters: params() } },
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "say_hello".to_string(), description: String::new(), parameters: params() } },
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "say_hello_world".to_string(), description: String::new(), parameters: params() } },
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "get_address".to_string(), description: String::new(), parameters: params() } },
-        Tool { type_field: "function".to_string(), items: None, function: ToolFunction { name: "add".to_string(), description: String::new(), parameters: params() } },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "get_temperature".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "get_conditions".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "say_hello".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "say_hello_world".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "get_address".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
+        Tool {
+            type_field: "function".to_string(),
+            items: None,
+            function: ToolFunction {
+                name: "add".to_string(),
+                description: String::new(),
+                parameters: params(),
+            },
+        },
     ]
 }
 
@@ -128,15 +182,55 @@ fn parser_cases() {
 
 #[test]
 fn parser_done_tests() {
-    struct Case<'a> { name: &'a str, tag: &'a str, buffer: &'a str, want: bool }
+    struct Case<'a> {
+        name: &'a str,
+        tag: &'a str,
+        buffer: &'a str,
+        want: bool,
+    }
     let cases = vec![
-        Case { name: "empty", tag: "<tool_call>", buffer: "", want: false },
-        Case { name: "json open", tag: "{", buffer: "{\"name\": \"get_weather\"", want: false },
-        Case { name: "json closed", tag: "{", buffer: "{\"name\": \"get_weather\"}", want: true },
-        Case { name: "json empty", tag: "{", buffer: "{}", want: true },
-        Case { name: "list open", tag: "[", buffer: "[{\"name\": \"get_weather\"", want: false },
-        Case { name: "list closed", tag: "[", buffer: "[{\"name\": \"get_weather\"}]", want: true },
-        Case { name: "list empty", tag: "[", buffer: "[]", want: true },
+        Case {
+            name: "empty",
+            tag: "<tool_call>",
+            buffer: "",
+            want: false,
+        },
+        Case {
+            name: "json open",
+            tag: "{",
+            buffer: "{\"name\": \"get_weather\"",
+            want: false,
+        },
+        Case {
+            name: "json closed",
+            tag: "{",
+            buffer: "{\"name\": \"get_weather\"}",
+            want: true,
+        },
+        Case {
+            name: "json empty",
+            tag: "{",
+            buffer: "{}",
+            want: true,
+        },
+        Case {
+            name: "list open",
+            tag: "[",
+            buffer: "[{\"name\": \"get_weather\"",
+            want: false,
+        },
+        Case {
+            name: "list closed",
+            tag: "[",
+            buffer: "[{\"name\": \"get_weather\"}]",
+            want: true,
+        },
+        Case {
+            name: "list empty",
+            tag: "[",
+            buffer: "[]",
+            want: true,
+        },
     ];
     let tools = tools_list();
     for c in cases {
@@ -145,4 +239,3 @@ fn parser_done_tests() {
         assert_eq!(p.done(), c.want, "{}", c.name);
     }
 }
-

@@ -15,7 +15,8 @@ fn main() {
         println!("cargo:rerun-if-changed={}", git_dir.join("index").display());
     }
 
-    let version = env::var("VERSION").unwrap_or_else(|_| env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".into()));
+    let version = env::var("VERSION")
+        .unwrap_or_else(|_| env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".into()));
     println!("cargo:rustc-env=OXI_VERSION={version}");
 
     let git_commit = git_commit(&manifest_dir).unwrap_or_else(|| "unknown".into());
@@ -47,7 +48,10 @@ fn git_dirty(manifest_dir: &str) -> Option<bool> {
     Some(!output.trim().is_empty())
 }
 
-fn run_git_command(manifest_dir: &str, args: impl IntoIterator<Item = &'static str>) -> Option<String> {
+fn run_git_command(
+    manifest_dir: &str,
+    args: impl IntoIterator<Item = &'static str>,
+) -> Option<String> {
     let output = Command::new("git")
         .args(args)
         .current_dir(manifest_dir)
@@ -93,7 +97,11 @@ fn locate_git_dir(start: &Path) -> Option<PathBuf> {
                 if let Some(path) = contents.strip_prefix("gitdir:") {
                     let git_path = path.trim();
                     let path = Path::new(git_path);
-                    return Some(if path.is_absolute() { path.to_path_buf() } else { dir.join(path) });
+                    return Some(if path.is_absolute() {
+                        path.to_path_buf()
+                    } else {
+                        dir.join(path)
+                    });
                 }
             }
         }

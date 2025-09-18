@@ -13,5 +13,9 @@ pub fn get_cpu_mem() -> std::io::Result<MemInfo> {
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {
     let mem = get_cpu_mem().unwrap_or_default();
-    vec![GpuInfo { mem_info: mem, library: "cpu".into(), ..Default::default() }]
+    vec![GpuInfo {
+        mem_info: mem,
+        library: "cpu".into(),
+        ..Default::default()
+    }]
 }

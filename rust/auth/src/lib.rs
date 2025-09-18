@@ -1,6 +1,6 @@
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine;
-use ed25519_dalek::{Signer, SigningKey, Signature};
+use ed25519_dalek::{Signature, Signer, SigningKey};
 use rand::RngCore;
 use ssh_key::PrivateKey;
 use std::{env, fs, path::PathBuf};
@@ -10,7 +10,9 @@ const DEFAULT_PRIVATE_KEY: &str = "id_ed25519";
 
 fn key_path() -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
     let home = env::var("HOME")?;
-    Ok(PathBuf::from(home).join(".ollama").join(DEFAULT_PRIVATE_KEY))
+    Ok(PathBuf::from(home)
+        .join(".ollama")
+        .join(DEFAULT_PRIVATE_KEY))
 }
 
 pub fn get_public_key() -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -46,7 +48,9 @@ pub fn sign(bts: &[u8]) -> Result<String, Box<dyn std::error::Error + Send + Syn
     let public_key = private_key.public_key().to_openssh()?;
     let parts: Vec<&str> = public_key.split(' ').collect();
     if parts.len() < 2 {
-        return Err(Box::<dyn std::error::Error + Send + Sync>::from("malformed public key"));
+        return Err(Box::<dyn std::error::Error + Send + Sync>::from(
+            "malformed public key",
+        ));
     }
     // get signing key
     let keypair = private_key
@@ -62,11 +66,11 @@ pub fn sign(bts: &[u8]) -> Result<String, Box<dyn std::error::Error + Send + Syn
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::{Signature, Verifier, VerifyingKey};
     use rand::rngs::OsRng;
+    use ssh_key::Algorithm;
     use std::{fs, sync::Mutex};
     use tempfile::TempDir;
-    use ssh_key::Algorithm;
-    use ed25519_dalek::{Signature, VerifyingKey, Verifier};
 
     static LOCK: Mutex<()> = Mutex::new(());
 
@@ -78,7 +82,11 @@ mod tests {
         let mut rng = OsRng;
         let private = PrivateKey::random(&mut rng, Algorithm::Ed25519).unwrap();
         let priv_str = private.to_openssh(Default::default()).unwrap();
-        fs::write(dir.path().join(".ollama").join(DEFAULT_PRIVATE_KEY), priv_str).unwrap();
+        fs::write(
+            dir.path().join(".ollama").join(DEFAULT_PRIVATE_KEY),
+            priv_str,
+        )
+        .unwrap();
         let pub_key_str = private.public_key().to_openssh().unwrap();
         let keypair = private.key_data().ed25519().unwrap();
         let verifying = VerifyingKey::from_bytes(keypair.public.as_ref()).unwrap();
@@ -110,10 +118,16 @@ mod tests {
 
     struct FailRng;
     impl RngCore for FailRng {
-        fn next_u32(&mut self) -> u32 { 0 }
-        fn next_u64(&mut self) -> u64 { 0 }
+        fn next_u32(&mut self) -> u32 {
+            0
+        }
+        fn next_u64(&mut self) -> u64 {
+            0
+        }
         fn fill_bytes(&mut self, _dest: &mut [u8]) {}
-        fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), rand::Error> { Err(rand::Error::new("fail")) }
+        fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), rand::Error> {
+            Err(rand::Error::new("fail"))
+        }
     }
 
     #[test]
@@ -130,7 +144,9 @@ mod tests {
         let parts: Vec<&str> = signed.split(':').collect();
         assert_eq!(parts.len(), 2);
         assert_eq!(parts[0], pub_key.split(' ').nth(1).unwrap());
-        let sig_bytes = base64::engine::general_purpose::STANDARD.decode(parts[1]).unwrap();
+        let sig_bytes = base64::engine::general_purpose::STANDARD
+            .decode(parts[1])
+            .unwrap();
         let signature = Signature::from_bytes(&sig_bytes.try_into().unwrap());
         verifying.verify(msg, &signature).unwrap();
     }
@@ -143,4 +159,3 @@ mod tests {
         assert!(sign(b"abc").is_err());
     }
 }
-

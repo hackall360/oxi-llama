@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -31,7 +31,12 @@ impl Progress {
                 render_inner(&term_clone, &states_clone);
             }
         });
-        Progress { term, states, ticker_stop: stop_flag, handle: Mutex::new(Some(handle)) }
+        Progress {
+            term,
+            states,
+            ticker_stop: stop_flag,
+            handle: Mutex::new(Some(handle)),
+        }
     }
 
     pub fn add<S>(&self, state: Arc<S>)
@@ -63,7 +68,9 @@ impl Progress {
 
 fn render_inner(term: &Term, states: &Arc<Mutex<Vec<Arc<dyn State>>>>) {
     let states_guard = states.lock().unwrap();
-    if states_guard.is_empty() { return; }
+    if states_guard.is_empty() {
+        return;
+    }
     let _ = term.clear_last_lines(states_guard.len());
     for s in states_guard.iter() {
         let _ = term.write_line(&s.render());

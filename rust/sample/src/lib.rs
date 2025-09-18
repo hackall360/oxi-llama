@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::cmp::Ordering;
 
 #[derive(Clone, Copy, Debug)]
@@ -28,14 +28,32 @@ impl Sampler {
 
         let temperature = if temperature < 0.0 { 0.0 } else { temperature };
         let mut top_p = top_p;
-        if top_p < 0.0 { top_p = 0.0; }
-        if top_p >= 1.0 { top_p = 1.0; }
+        if top_p < 0.0 {
+            top_p = 0.0;
+        }
+        if top_p >= 1.0 {
+            top_p = 1.0;
+        }
         let mut min_p = min_p;
-        if min_p < 0.0 { min_p = 0.0; }
-        if min_p >= 1.0 { min_p = 1.0; }
-        let top_k = if top_k <= 0 { None } else { Some(top_k as usize) };
+        if min_p < 0.0 {
+            min_p = 0.0;
+        }
+        if min_p >= 1.0 {
+            min_p = 1.0;
+        }
+        let top_k = if top_k <= 0 {
+            None
+        } else {
+            Some(top_k as usize)
+        };
 
-        Sampler { rng, top_k, top_p, min_p, temperature }
+        Sampler {
+            rng,
+            top_k,
+            top_p,
+            min_p,
+            temperature,
+        }
     }
 
     /// Sample from the provided logits and return the selected token id.
@@ -46,7 +64,10 @@ impl Sampler {
         let mut tokens: Vec<Token> = logits
             .iter()
             .enumerate()
-            .map(|(i, &v)| Token { id: i as i32, value: v })
+            .map(|(i, &v)| Token {
+                id: i as i32,
+                value: v,
+            })
             .collect();
         let token = self.inner_sample(&mut tokens)?;
         Ok(token.id)
@@ -109,10 +130,7 @@ pub fn temperature(ts: &mut [Token], temp: f32) {
 }
 
 pub fn softmax(ts: &mut [Token]) {
-    let max_logit = ts
-        .iter()
-        .map(|t| t.value)
-        .fold(f32::NEG_INFINITY, f32::max);
+    let max_logit = ts.iter().map(|t| t.value).fold(f32::NEG_INFINITY, f32::max);
     let mut sum = 0.0f32;
     for t in ts.iter_mut() {
         t.value = (t.value - max_logit).exp();
@@ -180,7 +198,10 @@ mod tests {
         values
             .iter()
             .enumerate()
-            .map(|(i, &v)| Token { id: i as i32, value: v })
+            .map(|(i, &v)| Token {
+                id: i as i32,
+                value: v,
+            })
             .collect()
     }
 
@@ -236,7 +257,20 @@ mod tests {
         softmax(&mut tokens);
         compare_logits(&[0.113550, 0.005653, 0.839024, 0.041773], &tokens);
 
-        let mut tokens = to_tokens(&[0.026986899, 0.043722924, 0.036774673, 0.27755088, 0.0046718004, 0.08582123, 0.20409796, 0.00412893, 0.15720603, 0.045046154, 0.0030491839, 0.01681367]);
+        let mut tokens = to_tokens(&[
+            0.026986899,
+            0.043722924,
+            0.036774673,
+            0.27755088,
+            0.0046718004,
+            0.08582123,
+            0.20409796,
+            0.00412893,
+            0.15720603,
+            0.045046154,
+            0.0030491839,
+            0.01681367,
+        ]);
         softmax(&mut tokens);
         let sum: f32 = tokens.iter().map(|t| t.value).sum();
         assert!((sum - 1.0).abs() < 1e-6);
@@ -247,10 +281,26 @@ mod tests {
 
     #[test]
     fn topk_basic() {
-        let input = [0.026986899, 0.043722924, 0.036774673, 0.27755088, 0.0046718004, 0.08582123, 0.20409796, 0.00412893, 0.15720603, 0.045046154, 0.0030491839, 0.01681367];
+        let input = [
+            0.026986899,
+            0.043722924,
+            0.036774673,
+            0.27755088,
+            0.0046718004,
+            0.08582123,
+            0.20409796,
+            0.00412893,
+            0.15720603,
+            0.045046154,
+            0.0030491839,
+            0.01681367,
+        ];
         let mut tokens = to_tokens(&input);
         top_k(&mut tokens, Some(5));
-        compare_logits(&[0.27755088, 0.20409796, 0.15720603, 0.08582123, 0.045046154], &tokens);
+        compare_logits(
+            &[0.27755088, 0.20409796, 0.15720603, 0.08582123, 0.045046154],
+            &tokens,
+        );
 
         let mut tokens = to_tokens(&input);
         top_k(&mut tokens, Some(20));
@@ -258,7 +308,23 @@ mod tests {
 
         let mut tokens = to_tokens(&input);
         top_k(&mut tokens, None);
-        compare_logits(&[0.27755088, 0.20409796, 0.15720603, 0.08582123, 0.045046154, 0.043722924, 0.036774673, 0.026986899, 0.01681367, 0.0046718004, 0.00412893, 0.0030491839], &tokens);
+        compare_logits(
+            &[
+                0.27755088,
+                0.20409796,
+                0.15720603,
+                0.08582123,
+                0.045046154,
+                0.043722924,
+                0.036774673,
+                0.026986899,
+                0.01681367,
+                0.0046718004,
+                0.00412893,
+                0.0030491839,
+            ],
+            &tokens,
+        );
     }
 
     #[test]

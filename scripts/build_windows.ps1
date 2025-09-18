@@ -43,7 +43,11 @@ function checkEnv() {
     }
 
     $script:DIST_DIR="${script:SRC_DIR}\dist\windows-${script:TARGET_ARCH}"
-    $env:CGO_ENABLED="1"
+    switch ($script:TARGET_ARCH) {
+        'amd64' { $script:RustTarget = 'x86_64-pc-windows-msvc' }
+        'arm64' { $script:RustTarget = 'aarch64-pc-windows-msvc' }
+        default { throw "Unsupported TARGET_ARCH: $script:TARGET_ARCH" }
+    }
     Write-Output "Checking version"
     if (!$env:VERSION) {
         $data=(git describe --tags --first-parent --abbrev=7 --long --dirty --always)
@@ -186,17 +190,17 @@ function buildROCm() {
 function buildOllama() {
     mkdir -Force -path "${script:DIST_DIR}\"
     write-host "Building ollama CLI"
-    & go build -trimpath -ldflags "-s -w -X=github.com/ollama/ollama/version.Version=$script:VERSION -X=github.com/ollama/ollama/server.mode=release" .
+    $env:VERSION=$script:VERSION
+    rustup target add $script:RustTarget | Out-Null
+    cargo build --release --bin ollama --target $script:RustTarget
     if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
-    cp .\ollama.exe "${script:DIST_DIR}\"
+    Copy-Item "${script:SRC_DIR}\target\$($script:RustTarget)\release\ollama.exe" "${script:DIST_DIR}\" -Force
 }
 
 function buildApp() {
-    write-host "Building Ollama App"
-    cd "${script:SRC_DIR}\app"
-    & windres -l 0 -o ollama.syso ollama.rc
-    & go build -trimpath -ldflags "-s -w -H windowsgui -X=github.com/ollama/ollama/version.Version=$script:VERSION -X=github.com/ollama/ollama/server.mode=release" -o "${script:SRC_DIR}\dist\windows-${script:TARGET_ARCH}-app.exe" .
-    if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
+    write-host "Preparing Ollama desktop launcher"
+    $appPath = "${script:SRC_DIR}\dist\windows-${script:TARGET_ARCH}-app.exe"
+    Copy-Item "${script:SRC_DIR}\target\$($script:RustTarget)\release\ollama.exe" $appPath -Force
 }
 
 function gatherDependencies() {
@@ -314,4 +318,5 @@ try {
 } finally {
     set-location $script:SRC_DIR
     $env:PKG_VERSION=""
+    $env:VERSION=""
 }

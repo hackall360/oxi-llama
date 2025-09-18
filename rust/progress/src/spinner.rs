@@ -1,5 +1,5 @@
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -64,7 +64,9 @@ impl Spinner {
             sb.push_str(&message);
             if self.message_width > 0 {
                 let pad = self.message_width as usize - message.len();
-                if pad > 0 { sb.push_str(&" ".repeat(pad)); }
+                if pad > 0 {
+                    sb.push_str(&" ".repeat(pad));
+                }
             }
             sb.push(' ');
         }

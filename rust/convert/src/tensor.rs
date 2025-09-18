@@ -39,13 +39,22 @@ pub struct BaseTensor {
 
 impl BaseTensor {
     pub fn new<N: Into<String>>(name: N, shape: Vec<u64>, data: Vec<f32>) -> Self {
-        Self { name: name.into(), shape, data, repacker: None }
+        Self {
+            name: name.into(),
+            shape,
+            data,
+            repacker: None,
+        }
     }
 }
 
 impl Tensor for BaseTensor {
-    fn name(&self) -> &str { &self.name }
-    fn shape(&self) -> &[u64] { &self.shape }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn shape(&self) -> &[u64] {
+        &self.shape
+    }
     fn kind(&self) -> TensorKind {
         if self.name.ends_with(".ffn_gate_inp.weight")
             || self.name.ends_with(".bias")
@@ -53,7 +62,8 @@ impl Tensor for BaseTensor {
             || self.name == "v.positional_embedding_vlm"
             || self.name == "v.tile_position_embd.weight"
             || self.name == "v.pre_tile_position_embd.weight"
-            || self.name == "v.post_tile_position_embd.weight" {
+            || self.name == "v.post_tile_position_embd.weight"
+        {
             return TensorKind::F32;
         }
         match self.shape.len() {
@@ -76,5 +86,7 @@ impl Tensor for BaseTensor {
         }
         w.write_all(&bytes)
     }
-    fn clone_box(&self) -> Box<dyn Tensor> { Box::new(self.clone()) }
+    fn clone_box(&self) -> Box<dyn Tensor> {
+        Box::new(self.clone())
+    }
 }

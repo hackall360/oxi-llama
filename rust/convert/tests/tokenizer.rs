@@ -1,4 +1,8 @@
-use std::{fs::{self, File}, io::Write, path::Path};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
 
 use convert::{parse_tokenizer, Tokenizer, Vocabulary};
 
@@ -16,14 +20,25 @@ fn create_tokenizer_fs(dir: &Path, files: &[(&str, &str)]) {
 #[test]
 fn string_chat_template() {
     let temp = tempfile::tempdir().unwrap();
-    create_tokenizer_fs(temp.path(), &[
-        ("tokenizer.json", "{}"),
-        ("tokenizer_config.json", "{\n  \"chat_template\": \"<default template>\"\n}")
-    ]);
+    create_tokenizer_fs(
+        temp.path(),
+        &[
+            ("tokenizer.json", "{}"),
+            (
+                "tokenizer_config.json",
+                "{\n  \"chat_template\": \"<default template>\"\n}",
+            ),
+        ],
+    );
 
     let got = parse_tokenizer(temp.path(), &[]).unwrap();
     let want = Tokenizer {
-        vocabulary: Vocabulary { model: "gpt2".into(), tokens: vec![], scores: vec![], types: vec![] },
+        vocabulary: Vocabulary {
+            model: "gpt2".into(),
+            tokens: vec![],
+            scores: vec![],
+            types: vec![],
+        },
         special_vocabulary: vec![],
         merges: vec![],
         pre: "default".into(),
@@ -42,7 +57,12 @@ fn list_chat_template() {
 
     let got = parse_tokenizer(temp.path(), &[]).unwrap();
     let want = Tokenizer {
-        vocabulary: Vocabulary { model: "gpt2".into(), tokens: vec![], scores: vec![], types: vec![] },
+        vocabulary: Vocabulary {
+            model: "gpt2".into(),
+            tokens: vec![],
+            scores: vec![],
+            types: vec![],
+        },
         special_vocabulary: vec![],
         merges: vec![],
         pre: "default".into(),

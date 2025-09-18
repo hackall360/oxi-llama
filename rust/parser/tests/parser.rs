@@ -1,5 +1,5 @@
-use parser::{parse_file, Command};
 use parser::modelfile::ParserError;
+use parser::{Command, parse_file};
 use std::io::Cursor;
 
 #[test]
@@ -12,7 +12,14 @@ fn parse_trim_space() {
 #[test]
 fn parse_from_cases() {
     let cases = vec![
-        ("FROM foo", vec![Command { name: "model".into(), args: "foo".into() }], None),
+        (
+            "FROM foo",
+            vec![Command {
+                name: "model".into(),
+                args: "foo".into(),
+            }],
+            None,
+        ),
         ("", vec![], Some(ParserError::MissingFrom)),
     ];
     for (inp, expected_cmds, err) in cases {

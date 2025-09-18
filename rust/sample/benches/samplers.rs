@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::Rng;
 use sample::Sampler;
 
@@ -7,7 +7,9 @@ fn bench_weighted_sampler(c: &mut Criterion) {
     for &size in &sizes {
         let mut logits = vec![0f32; size];
         let mut rng = rand::thread_rng();
-        for v in &mut logits { *v = rng.r#gen::<f32>() * 10.0 - 5.0; }
+        for v in &mut logits {
+            *v = rng.r#gen::<f32>() * 10.0 - 5.0;
+        }
         let mut sampler = Sampler::new(0.8, 0, 0.0, 0.0, 42);
         c.bench_with_input(BenchmarkId::new("weighted_size", size), &size, |b, &_s| {
             b.iter(|| sampler.sample(&logits).unwrap());
@@ -25,7 +27,9 @@ fn bench_weighted_sampler(c: &mut Criterion) {
 
     let mut logits = vec![0f32; 128_000];
     let mut rng = rand::thread_rng();
-    for v in &mut logits { *v = rng.r#gen::<f32>() * 10.0 - 5.0; }
+    for v in &mut logits {
+        *v = rng.r#gen::<f32>() * 10.0 - 5.0;
+    }
 
     for &(name, temp, top_k, top_p, min_p, seed) in &configs {
         let mut sampler = Sampler::new(temp, top_k, top_p, min_p, seed);
@@ -46,7 +50,9 @@ fn bench_greedy_sampler(c: &mut Criterion) {
     for &size in &sizes {
         let mut logits = vec![0f32; size];
         let mut rng = rand::thread_rng();
-        for v in &mut logits { *v = rng.r#gen::<f32>() * 10.0 - 5.0; }
+        for v in &mut logits {
+            *v = rng.r#gen::<f32>() * 10.0 - 5.0;
+        }
         let mut sampler = Sampler::new(0.0, -1, 0.0, 0.0, -1);
         c.bench_with_input(BenchmarkId::new("greedy_size", size), &size, |b, &_s| {
             b.iter(|| sampler.sample(&logits).unwrap());

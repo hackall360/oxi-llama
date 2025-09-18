@@ -9,8 +9,7 @@ usage() {
 }
 
 export VERSION=${VERSION:-$(git describe --tags --first-parent --abbrev=7 --long --dirty --always | sed -e "s/^v//g")}
-export GOFLAGS="'-ldflags=-w -s \"-X=github.com/ollama/ollama/version.Version=${VERSION#v}\" \"-X=github.com/ollama/ollama/server.mode=release\"'"
-export CGO_CPPFLAGS='-mmacosx-version-min=11.3'
+export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-11.3}
 
 ARCHS="arm64 amd64"
 while getopts "a:h" OPTION; do
@@ -26,7 +25,17 @@ _build_darwin() {
     for ARCH in $ARCHS; do
         status "Building darwin $ARCH"
         INSTALL_PREFIX=dist/darwin-$ARCH/
-        GOOS=darwin GOARCH=$ARCH CGO_ENABLED=1 go build -o $INSTALL_PREFIX .
+        mkdir -p "$INSTALL_PREFIX"
+
+        case "$ARCH" in
+            arm64) TARGET_TRIPLE=aarch64-apple-darwin ;;
+            amd64) TARGET_TRIPLE=x86_64-apple-darwin ;;
+            *) echo "unsupported arch: $ARCH" >&2; exit 1 ;;
+        esac
+
+        rustup target add "$TARGET_TRIPLE" >/dev/null 2>&1 || true
+        cargo build --release --bin ollama --target "$TARGET_TRIPLE"
+        install -Dm755 "target/$TARGET_TRIPLE/release/ollama" "$INSTALL_PREFIX/ollama"
 
         if [ "$ARCH" = "amd64" ]; then
             status "Building darwin $ARCH dynamic backends"

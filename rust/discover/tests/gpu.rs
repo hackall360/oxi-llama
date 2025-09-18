@@ -26,35 +26,78 @@ fn test_cpu_mem_info() {
 fn test_by_library() {
     let test_cases = vec![
         (vec![], 0),
-        (vec![GpuInfo { library: "cpu".into(), ..Default::default() }], 1),
+        (
+            vec![GpuInfo {
+                library: "cpu".into(),
+                ..Default::default()
+            }],
+            1,
+        ),
         (
             vec![
-                GpuInfo { library: "cpu".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), ..Default::default() },
+                GpuInfo {
+                    library: "cpu".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    ..Default::default()
+                },
             ],
             2,
         ),
         (
             vec![
-                GpuInfo { library: "cpu".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), ..Default::default() },
+                GpuInfo {
+                    library: "cpu".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    ..Default::default()
+                },
             ],
             2,
         ),
         (
             vec![
-                GpuInfo { library: "cpu".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), variant: "v11".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), variant: "v11".into(), ..Default::default() },
+                GpuInfo {
+                    library: "cpu".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    variant: "v11".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    variant: "v11".into(),
+                    ..Default::default()
+                },
             ],
             2,
         ),
         (
             vec![
-                GpuInfo { library: "cpu".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), variant: "v11".into(), ..Default::default() },
-                GpuInfo { library: "cuda".into(), variant: "v12".into(), ..Default::default() },
+                GpuInfo {
+                    library: "cpu".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    variant: "v11".into(),
+                    ..Default::default()
+                },
+                GpuInfo {
+                    library: "cuda".into(),
+                    variant: "v12".into(),
+                    ..Default::default()
+                },
             ],
             3,
         ),

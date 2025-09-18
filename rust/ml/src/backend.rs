@@ -28,10 +28,10 @@ pub struct TchBackend;
 #[cfg(feature = "tch")]
 impl TensorBackend for TchBackend {
     fn matmul(&self, a: &Array2<f32>, b: &Array2<f32>) -> Array2<f32> {
-        let a_tensor = Tensor::of_slice(a.as_slice().unwrap())
-            .reshape(&[a.nrows() as i64, a.ncols() as i64]);
-        let b_tensor = Tensor::of_slice(b.as_slice().unwrap())
-            .reshape(&[b.nrows() as i64, b.ncols() as i64]);
+        let a_tensor =
+            Tensor::of_slice(a.as_slice().unwrap()).reshape(&[a.nrows() as i64, a.ncols() as i64]);
+        let b_tensor =
+            Tensor::of_slice(b.as_slice().unwrap()).reshape(&[b.nrows() as i64, b.ncols() as i64]);
         let out = a_tensor.matmul(&b_tensor);
         let shape = out.size();
         let vec: Vec<f32> = Vec::<f32>::try_from(out.reshape(&[-1])).unwrap();
