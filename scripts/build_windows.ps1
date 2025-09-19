@@ -49,22 +49,87 @@ function checkEnv() {
         default { throw "Unsupported TARGET_ARCH: $script:TARGET_ARCH" }
     }
     Write-Output "Checking version"
+    $cargoPackage = if ($env:CARGO_PACKAGE_NAME) { $env:CARGO_PACKAGE_NAME } else { "oxi-llama" }
+    $cargoVersion = ""
+    try {
+        $pkgId = cargo pkgid -p $cargoPackage 2>$null
+        if ($pkgId) {
+            $cargoVersion = ($pkgId -split '#')[-1]
+        }
+    } catch {}
+
+    $gitDescribe = ""
+    try {
+        $gitDescribe = (git describe --tags --first-parent --abbrev=7 --long --dirty --always 2>$null).Trim()
+        if ($gitDescribe.StartsWith('v')) {
+            $gitDescribe = $gitDescribe.Substring(1)
+        }
+    } catch {}
+
+    $metadata = ""
+    if ($cargoVersion -and $gitDescribe) {
+        if ($gitDescribe.StartsWith($cargoVersion + "-")) {
+            $metadata = $gitDescribe.Substring($cargoVersion.Length + 1)
+        } else {
+            $metadata = $gitDescribe
+        }
+    } elseif ($gitDescribe) {
+        $metadata = $gitDescribe
+    }
+    if ($metadata) {
+        $metadata = $metadata.Replace('-', '.')
+    }
+
     if (!$env:VERSION) {
-        $data=(git describe --tags --first-parent --abbrev=7 --long --dirty --always)
-        $pattern="v(.+)"
-        if ($data -match $pattern) {
-            $script:VERSION=$matches[1]
+        if ($cargoVersion) {
+            if ($metadata) {
+                $script:VERSION = "$cargoVersion+$metadata"
+            } else {
+                $script:VERSION = $cargoVersion
+            }
+        } elseif ($gitDescribe) {
+            $script:VERSION = $gitDescribe
         }
     } else {
-        $script:VERSION=$env:VERSION
+        $script:VERSION = $env:VERSION
     }
-    $pattern = "(\d+[.]\d+[.]\d+).*"
-    if ($script:VERSION -match $pattern) {
-        $script:PKG_VERSION=$matches[1]
+    if (-not $script:VERSION) {
+        $script:VERSION = "0.0.0"
+    }
+
+    if (-not $script:VERSION_SEMVER) {
+        if ($cargoVersion) {
+            $script:VERSION_SEMVER = $cargoVersion
+        } else {
+            $script:VERSION_SEMVER = ($script:VERSION -split '\+')[0]
+        }
+    }
+
+    if (-not $script:VERSION_METADATA) {
+        if ($metadata) {
+            $script:VERSION_METADATA = $metadata
+        } elseif ($gitDescribe) {
+            $script:VERSION_METADATA = $gitDescribe.Replace('-', '.')
+        } else {
+            $script:VERSION_METADATA = $script:VERSION
+        }
+    }
+
+    if ($script:VERSION_SEMVER) {
+        $script:PKG_VERSION = $script:VERSION_SEMVER
     } else {
-        $script:PKG_VERSION="0.0.0"
+        $pattern = "(\d+[.]\d+[.]\d+).*"
+        if ($script:VERSION -match $pattern) {
+            $script:PKG_VERSION=$matches[1]
+        } else {
+            $script:PKG_VERSION="0.0.0"
+        }
     }
+
     write-host "Building Ollama $script:VERSION with package version $script:PKG_VERSION"
+    if ($script:VERSION_METADATA -and $script:VERSION_METADATA -ne $script:VERSION) {
+        write-host "Version metadata $script:VERSION_METADATA"
+    }
 
     # Note: Windows Kits 10 signtool crashes with GCP's plugin
     if ($null -eq $env:SIGN_TOOL) {
@@ -79,6 +144,35 @@ function checkEnv() {
         write-host "Code signing disabled - please set KEY_CONTAINERS to sign and copy ollama_inc.crt to the top of the source tree"
     }
     $script:JOBS=((Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors)
+}
+
+
+function CopyRuntimeLibraries($targetTriple, $destination) {
+    $targetRoot = Join-Path "target" $targetTriple
+    $releaseDir = Join-Path $targetRoot "release"
+    $runtimeDir = Join-Path $releaseDir "runtime-libs"
+    if (Test-Path $runtimeDir) {
+        Remove-Item -Path $runtimeDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+
+    $searchDirs = @($releaseDir, (Join-Path $releaseDir "deps"))
+    foreach ($dir in $searchDirs) {
+        if (Test-Path $dir) {
+            Get-ChildItem -Path $dir -Filter "*.dll" -File | Copy-Item -Destination $runtimeDir -Force
+        }
+    }
+
+    if (Test-Path $runtimeDir) {
+        $libs = Get-ChildItem -Path $runtimeDir -File -ErrorAction SilentlyContinue
+        if ($libs) {
+            $destDir = Join-Path (Join-Path $destination "lib") "ollama"
+            if (-not (Test-Path $destDir)) {
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+            $libs | Copy-Item -Destination $destDir -Force
+        }
+    }
 }
 
 
@@ -191,10 +285,17 @@ function buildOllama() {
     mkdir -Force -path "${script:DIST_DIR}\"
     write-host "Building ollama CLI"
     $env:VERSION=$script:VERSION
+    $env:VERSION_SEMVER=$script:VERSION_SEMVER
+    $env:VERSION_METADATA=$script:VERSION_METADATA
     rustup target add $script:RustTarget | Out-Null
-    cargo build --release --bin ollama --target $script:RustTarget
+    $cargoArgs = @("build", "--release", "--bin", "ollama", "--target", $script:RustTarget)
+    if ($env:CARGO_FEATURES) {
+        $cargoArgs += @("--features", $env:CARGO_FEATURES)
+    }
+    cargo @cargoArgs
     if ($LASTEXITCODE -ne 0) { exit($LASTEXITCODE)}
     Copy-Item "${script:SRC_DIR}\target\$($script:RustTarget)\release\ollama.exe" "${script:DIST_DIR}\" -Force
+    CopyRuntimeLibraries -targetTriple $script:RustTarget -destination $script:DIST_DIR
 }
 
 function buildApp() {
@@ -319,4 +420,6 @@ try {
     set-location $script:SRC_DIR
     $env:PKG_VERSION=""
     $env:VERSION=""
+    $env:VERSION_SEMVER=""
+    $env:VERSION_METADATA=""
 }
