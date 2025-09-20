@@ -6,6 +6,8 @@ use nvml_wrapper::{
 use std::mem::size_of;
 use sysinfo::SystemExt;
 
+mod hip;
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct GroupAffinity {
@@ -142,16 +144,23 @@ pub fn get_cpu_mem() -> std::io::Result<MemInfo> {
 }
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {
-    match Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
-        Ok(nvml) => {
-            let result = collect_cuda_info(&nvml);
-            let _ = nvml.shutdown();
-            match result {
-                Ok(gpus) if !gpus.is_empty() => gpus,
-                _ => cpu_fallback(),
-            }
+    let mut gpus = Vec::new();
+
+    if let Ok(nvml) = Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
+        if let Ok(mut cuda_gpus) = collect_cuda_info(&nvml) {
+            gpus.append(&mut cuda_gpus);
         }
-        Err(_) => cpu_fallback(),
+        let _ = nvml.shutdown();
+    }
+
+    if let Ok(mut hip_gpus) = hip::collect_hip_info() {
+        gpus.append(&mut hip_gpus);
+    }
+
+    if gpus.is_empty() {
+        cpu_fallback()
+    } else {
+        gpus
     }
 }
 
