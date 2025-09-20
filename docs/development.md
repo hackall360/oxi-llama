@@ -2,7 +2,7 @@
 
 Install prerequisites:
 
-- [Rust toolchain](https://rustup.rs/)
+- [Rust toolchain](https://rustup.rs/) (see [Rust setup](#rust-setup) for detailed steps)
 - C/C++ Compiler e.g. Clang on macOS, [TDM-GCC](https://github.com/jmeubank/tdm-gcc/releases/latest) (Windows amd64) or [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (Windows arm64), GCC/Clang on Linux.
 
 Then build and run Ollama from the root directory of the repository:
@@ -10,6 +10,58 @@ Then build and run Ollama from the root directory of the repository:
 ```shell
 cargo run -- serve
 ```
+
+## Rust setup
+
+Ollama's server and command-line interface are implemented entirely in Rust. The
+repository is a Cargo workspace containing the binary target in `src/` and the
+supporting crates under `rust/`.
+
+1. Install `rustup` from [rustup.rs](https://rustup.rs) and select the `stable`
+   toolchain (the project tests against the latest stable release).
+2. Install the components used by the CI checks:
+
+   ```shell
+   rustup component add rustfmt clippy rust-analyzer
+   ```
+
+3. (Optional) Install additional targets when cross-compiling:
+
+   ```shell
+   rustup target add aarch64-apple-darwin x86_64-apple-darwin \
+     aarch64-pc-windows-msvc x86_64-pc-windows-msvc
+   ```
+
+4. Confirm the toolchain is available:
+
+   ```shell
+   cargo --version
+   ```
+
+### Common Cargo commands
+
+- `cargo run -- serve` – start the Ollama daemon directly from the workspace.
+- `cargo build --release` – compile optimized binaries for packaging.
+- `cargo test --all` – execute the workspace test suite.
+- `cargo fmt --all --check` – ensure formatting matches `rustfmt`.
+- `cargo clippy --all-targets --all-features -- -D warnings` – lint the code.
+
+### GPU features
+
+GPU acceleration is controlled through Cargo features exposed by the `ml`
+crate:
+
+- Enable the Torch runtime with `ml/tch`.
+- Select a backend with `tch/cuda` (NVIDIA) or `tch/rocm` (AMD).
+
+You can combine these features when building locally:
+
+```shell
+cargo build --release --features ml/tch,tch/cuda
+```
+
+When building in Docker, pass `CARGO_FEATURES=ml/tch,tch/<backend>` as shown in
+the [Docker section](#docker).
 
 ## macOS (Apple Silicon)
 

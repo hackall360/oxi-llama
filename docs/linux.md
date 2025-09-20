@@ -8,6 +8,11 @@ To install Ollama, run the following command:
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
+> [!NOTE]
+> The Linux installer downloads the Rust-based Ollama daemon and CLI that are
+> built from the workspace in this repository. Shell scripts included in the
+> bundle only configure the system service wrappers.
+
 ## Manual install
 
 > [!NOTE]

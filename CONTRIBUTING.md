@@ -53,9 +53,10 @@ The title should look like:
 
     <package>: <short description>
 
-The package is the most affected Go package. If the change does not affect Go
-code, then use the directory name instead. Changes to a single well-known
-file in the root directory may use the file name.
+The package is the most affected Rust crate or workspace member. If the change
+is limited to documentation or auxiliary files, use the directory name instead.
+Changes to a single well-known file in the root directory may use the file
+name.
 
 The short description should start with a lowercase letter and be a
 continuation of the sentence:
@@ -76,13 +77,21 @@ Bad Examples:
 
 **Tests**
 
-Please include tests. Strive to test behavior, not implementation.
+Please include tests. Strive to test behavior, not implementation. Pull
+requests that modify Rust code should run the standard checks locally before
+submission:
+
+```shell
+cargo test --all
+cargo fmt --all --check
+cargo clippy --all-targets --all-features -- -D warnings
+```
 
 **New dependencies**
 
-Dependencies should be added sparingly. If you are adding a new dependency,
-please explain why it is necessary and what other ways you attempted that
-did not work without it.
+Dependencies should be added sparingly. If you are adding a new crate or
+binary dependency, please explain why it is necessary and what other ways you
+attempted that did not work without it.
 
 ## Need help?
 

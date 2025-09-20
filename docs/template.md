@@ -1,10 +1,13 @@
 # Template
 
-Ollama provides a powerful templating engine backed by Go's built-in templating engine to construct prompts for your large language model. This feature is a valuable tool to get the most out of your models.
+Ollama provides a powerful templating engine implemented in Rust while staying
+compatible with Go's templating syntax to construct prompts for your large
+language model. This feature is a valuable tool to get the most out of your
+models.
 
 ## Basic Template Structure
 
-A basic Go template consists of three main parts:
+A basic Go-style template consists of three main parts:
 
 * **Layout**: The overall structure of the template.
 * **Variables**: Placeholders for dynamic data that will be replaced with actual values when the template is rendered.
@@ -97,7 +100,7 @@ TEMPLATE """{{- if .System }}<|start_header_id|>system<|end_header_id|>
 
 ## Tips and Best Practices
 
-Keep the following tips and best practices in mind when working with Go templates:
+Keep the following tips and best practices in mind when working with Go-style templates:
 
 * **Be mindful of dot**: Control flow structures like `range` and `with` changes the value `.`
 * **Out-of-scope variables**: Use `$.` to reference variables not currently in scope, starting from the root
