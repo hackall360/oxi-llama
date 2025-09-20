@@ -1,15 +1,15 @@
 use std::env;
 use std::path::PathBuf;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn main() {
     generate_bindings();
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 fn main() {}
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 fn generate_bindings() {
     println!("cargo:rerun-if-changed=oneapi/ze_api.h");
     println!("cargo:rerun-if-changed=oneapi/zes_api.h");
