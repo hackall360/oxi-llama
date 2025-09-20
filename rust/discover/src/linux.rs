@@ -1,8 +1,13 @@
-use crate::{GpuInfo, MemInfo, CPU};
+use crate::{path, GpuInfo, MemInfo, CPU};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
+
+use nvml_wrapper::{
+    bitmasks::InitFlags, cuda_driver_version_major, cuda_driver_version_minor, error::NvmlError,
+    Nvml,
+};
 
 pub fn get_cpu_mem() -> io::Result<MemInfo> {
     let mut mem = MemInfo::default();
@@ -76,10 +81,84 @@ pub fn get_cpu_mem() -> io::Result<MemInfo> {
 }
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {
+    let nvml = match Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
+        Ok(nvml) => nvml,
+        Err(_) => return cpu_fallback(),
+    };
+
+    let result = collect_cuda_info(&nvml);
+    let _ = nvml.shutdown();
+
+    match result {
+        Ok(gpus) if !gpus.is_empty() => gpus,
+        _ => cpu_fallback(),
+    }
+}
+
+fn collect_cuda_info(nvml: &Nvml) -> Result<Vec<GpuInfo>, NvmlError> {
+    let device_count = nvml.device_count()?;
+    if device_count == 0 {
+        return Ok(Vec::new());
+    }
+
+    let (driver_major, driver_minor, variant) = match nvml.sys_cuda_driver_version() {
+        Ok(version) => {
+            let major = cuda_driver_version_major(version);
+            let minor = cuda_driver_version_minor(version);
+            let variant = if major > 0 {
+                format!("v{}", major)
+            } else {
+                String::new()
+            };
+            (major, minor, variant)
+        }
+        Err(_) => (0, 0, String::new()),
+    };
+    let dependency_paths = path::default_dependency_paths("cuda", &variant);
+
+    let mut gpus = Vec::with_capacity(device_count as usize);
+
+    for index in 0..device_count {
+        let device = nvml.device_by_index(index)?;
+        let memory = device.memory_info()?;
+
+        let mem_info = MemInfo {
+            total_memory: memory.total,
+            free_memory: memory.free,
+            free_swap: 0,
+        };
+
+        let id = device.uuid().unwrap_or_else(|_| format!("gpu-{}", index));
+        let name = device.name().unwrap_or_else(|_| "NVIDIA GPU".to_string());
+        let compute = device
+            .cuda_compute_capability()
+            .map(|cap| format!("{}.{}", cap.major, cap.minor))
+            .unwrap_or_default();
+
+        gpus.push(GpuInfo {
+            mem_info,
+            library: "cuda".into(),
+            variant: variant.clone(),
+            dependency_path: dependency_paths.clone(),
+            id,
+            name,
+            compute,
+            driver_major,
+            driver_minor,
+            ..Default::default()
+        });
+    }
+
+    Ok(gpus)
+}
+
+fn cpu_fallback() -> Vec<GpuInfo> {
     let mem = get_cpu_mem().unwrap_or_default();
+    let dependency_path = path::default_dependency_paths("cpu", "");
     vec![GpuInfo {
         mem_info: mem,
         library: "cpu".into(),
+        dependency_path,
         ..Default::default()
     }]
 }
