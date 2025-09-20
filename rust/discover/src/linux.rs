@@ -9,6 +9,9 @@ use nvml_wrapper::{
     Nvml,
 };
 
+#[cfg(feature = "linux-rocm")]
+mod hip;
+
 pub fn get_cpu_mem() -> io::Result<MemInfo> {
     let mut mem = MemInfo::default();
     let file = File::open("/proc/meminfo")?;
@@ -81,17 +84,26 @@ pub fn get_cpu_mem() -> io::Result<MemInfo> {
 }
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {
-    let nvml = match Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
-        Ok(nvml) => nvml,
-        Err(_) => return cpu_fallback(),
-    };
+    let mut gpus = Vec::new();
 
-    let result = collect_cuda_info(&nvml);
-    let _ = nvml.shutdown();
+    if let Ok(nvml) = Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
+        if let Ok(mut cuda_gpus) = collect_cuda_info(&nvml) {
+            gpus.append(&mut cuda_gpus);
+        }
+        let _ = nvml.shutdown();
+    }
 
-    match result {
-        Ok(gpus) if !gpus.is_empty() => gpus,
-        _ => cpu_fallback(),
+    #[cfg(feature = "linux-rocm")]
+    {
+        if let Ok(mut hip_gpus) = hip::collect_hip_info() {
+            gpus.append(&mut hip_gpus);
+        }
+    }
+
+    if gpus.is_empty() {
+        cpu_fallback()
+    } else {
+        gpus
     }
 }
 
