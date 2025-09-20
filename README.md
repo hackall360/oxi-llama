@@ -230,6 +230,22 @@ ollama stop llama3.2
 
 `ollama serve` is used when you want to start ollama without running the desktop application.
 
+## Architecture and technology
+
+The Ollama daemon, CLI, and supporting libraries are implemented in Rust and
+shipped from the workspace defined in `Cargo.toml`. Each subsystem (server,
+runner, model loading, templating, etc.) lives in a dedicated crate under the
+`rust/` directory and is built together through Cargo. A handful of
+platform-native projects remain by design:
+
+- `macapp/` contains the Electron desktop application that consumes the Rust
+  APIs.
+- `installer/setup.iss` and the scripts in `installer/` and `scripts/` provide
+  Windows and POSIX packaging glue around the Rust binaries.
+
+See [docs/rust-migration.md](./docs/rust-migration.md) for a historical view of
+the Go-to-Rust migration and the current component inventory.
+
 ## Building
 
 See the [developer guide](https://github.com/ollama/ollama/blob/main/docs/development.md)

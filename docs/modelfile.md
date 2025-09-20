@@ -163,7 +163,7 @@ PARAMETER <parameter> <parametervalue>
 
 ### TEMPLATE
 
-`TEMPLATE` of the full prompt template to be passed into the model. It may include (optionally) a system message, a user's message and the response from the model. Note: syntax may be model specific. Templates use Go [template syntax](https://pkg.go.dev/text/template).
+`TEMPLATE` of the full prompt template to be passed into the model. It may include (optionally) a system message, a user's message and the response from the model. Note: syntax may be model specific. Templates use Go-style [template syntax](https://pkg.go.dev/text/template), implemented in Rust for runtime compatibility.
 
 #### Template Variables
 

@@ -1,19 +1,35 @@
 # Rust Migration Inventory
 
-This document tracks components that previously relied on Go or other tooling and the status of their Rust replacements.
+The Go implementation of the Ollama daemon has been fully retired. All runtime
+services, the CLI, and supporting libraries now live in the Rust workspace
+rooted at `Cargo.toml` and `rust/`. This page captures the historical
+translation of key components and the limited set of projects that intentionally
+remain in other languages.
 
-| Component | Previous Implementation | Decision | Replacement |
-|-----------|-------------------------|----------|-------------|
-| `fs/util/bufioutil` | Go helper wrapping `bufio.Reader` for seekable readers | Rewritten in Rust | `rust/fs/src/util/bufioutil.rs` (exposed via `fs::util::bufioutil::BufferedSeeker`) |
-| `template` package | Go prompt templating with embedded assets | Rewritten in Rust | `rust/template` crate embedding `template/` assets and providing `Template`, `Values`, and `named` helpers |
-| `installer/setup.iss` | Inno Setup script | Remains platform-native tooling | Windows packaging continues to rely on `installer/setup.iss`; integration with the Rust toolchain is tracked separately |
-| `macapp` Electron UI | Node/Electron project | Remains platform-native tooling | Documented as external dependency; Rust back-end exposes APIs consumed by the Electron front-end |
+## Completed migrations
 
-The new Rust crates are part of the `rust/` tree and can be built and tested independently:
+| Component | Previous Implementation | Replacement |
+|-----------|-------------------------|-------------|
+| Core server, runner, model, and CLI layers | Go modules spread across `./server`, `./runner`, `./model`, and friends | Workspace crates under `rust/server`, `rust/runner`, `rust/model`, `rust/cli`, and the binary entry point in `src/main.rs` |
+| Filesystem utilities such as `fs/util/bufioutil` | Go helper wrapping `bufio.Reader` for seekable readers | Rust translation in `rust/fs/src/util/bufioutil.rs` exposed via `fs::util::bufioutil::BufferedSeeker` |
+| Prompt templating | Go package embedding `template/` assets | Rust `template` crate embedding the assets and providing `Template`, `Values`, and named helpers |
+
+Each workspace crate can be built and tested individually, but all targets are
+also exercised from the repository root:
 
 ```bash
-cd rust/fs && cargo test
-cd rust/template && cargo test
+cargo test --all
 ```
 
-Future work will focus on wiring these crates into the top-level binaries and incrementally retiring the Go code paths once parity is validated in production.
+## Intentional non-Rust components
+
+The following projects continue to use platform-native tooling:
+
+| Component | Language / Tooling | Rationale |
+|-----------|--------------------|-----------|
+| `macapp/` | Electron/TypeScript | Provides the cross-platform desktop UI that consumes the Rust HTTP/gRPC APIs. |
+| `installer/setup.iss` | Inno Setup script | Windows packaging and shortcuts are authored in Inno Setup and invoked after the Rust binaries are produced. |
+| `scripts/` and `installer/` shell helpers | POSIX shell & PowerShell | Retained for packaging, release automation, and integration with OS-specific installers. |
+
+These components interface with the Rust binaries but do not contain runtime
+business logic.
