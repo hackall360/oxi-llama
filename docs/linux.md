@@ -16,10 +16,16 @@ curl -fsSL https://ollama.com/install.sh | sh
 Download and extract the package:
 
 ```shell
-curl -LO https://ollama.com/download/ollama-linux-amd64.tgz
+curl -LO https://ollama.com/download/ollama-linux-amd64.tar.gz
 sudo rm -rf /usr/lib/ollama
-sudo tar -C /usr -xzf ollama-linux-amd64.tgz
+sudo tar -C /usr -xzf ollama-linux-amd64.tar.gz
 ```
+
+The Rust release process publishes separate tarballs for architecture-specific components:
+
+- `ollama-linux-<arch>.tar.gz` – installs the Rust CLI along with CPU and CUDA runtime libraries into `/usr/bin` and `/usr/lib/ollama`.
+- `ollama-linux-<arch>-gpu-rocm.tar.gz` – provides the optional ROCm GPU runtime for AMD hardware; extract alongside the base bundle when required.
+- `ollama-linux-arm64-gpu-jetpack{5,6}.tar.gz` – augment ARM64 systems running NVIDIA JetPack with the appropriate GPU runtimes.
 
 Start Ollama:
 
@@ -38,12 +44,12 @@ ollama -v
 If you have an AMD GPU, **also** download and extract the additional ROCm package:
 
 > [!IMPORTANT]
-> The ROCm tgz contains only AMD dependent libraries.  You must extract **both** `ollama-linux-amd64.tgz` and `ollama-linux-amd64-rocm.tgz` into the same location.
+> The ROCm bundle contains only AMD dependent libraries.  You must extract **both** `ollama-linux-amd64.tar.gz` and `ollama-linux-amd64-gpu-rocm.tar.gz` into the same location.
 
 
 ```shell
-curl -L https://ollama.com/download/ollama-linux-amd64-rocm.tgz -o ollama-linux-amd64-rocm.tgz
-sudo tar -C /usr -xzf ollama-linux-amd64-rocm.tgz
+curl -L https://ollama.com/download/ollama-linux-amd64-gpu-rocm.tar.gz -o ollama-linux-amd64-gpu-rocm.tar.gz
+sudo tar -C /usr -xzf ollama-linux-amd64-gpu-rocm.tar.gz
 ```
 
 ### ARM64 install
@@ -51,8 +57,8 @@ sudo tar -C /usr -xzf ollama-linux-amd64-rocm.tgz
 Download and extract the ARM64-specific package:
 
 ```shell
-curl -L https://ollama.com/download/ollama-linux-arm64.tgz -o ollama-linux-arm64.tgz
-sudo tar -C /usr -xzf ollama-linux-arm64.tgz
+curl -L https://ollama.com/download/ollama-linux-arm64.tar.gz -o ollama-linux-arm64.tar.gz
+sudo tar -C /usr -xzf ollama-linux-arm64.tar.gz
 ```
 
 ### Adding Ollama as a startup service (recommended)
@@ -146,8 +152,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 Or by re-downloading Ollama:
 
 ```shell
-curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama-linux-amd64.tgz
-sudo tar -C /usr -xzf ollama-linux-amd64.tgz
+curl -L https://ollama.com/download/ollama-linux-amd64.tar.gz -o ollama-linux-amd64.tar.gz
+sudo tar -C /usr -xzf ollama-linux-amd64.tar.gz
 ```
 
 ## Installing specific versions
