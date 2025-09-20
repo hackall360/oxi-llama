@@ -5,10 +5,6 @@ on:
     tags:
       - 'v*'
 
-env:
-  CGO_CFLAGS: '-O3'
-  CGO_CXXFLAGS: '-O3'
-
 jobs:
   setup-environment:
     runs-on: ubuntu-latest
@@ -233,19 +229,43 @@ jobs:
           - os: linux
             arch: amd64
             target: archive
+            rust-target: x86_64-unknown-linux-gnu
           - os: linux
             arch: amd64
             target: rocm
+            rust-target: x86_64-unknown-linux-gnu
           - os: linux
             arch: arm64
             target: archive
-    runs-on: ${{ matrix.arch == 'arm64' && format('{0}-{1}', matrix.os, matrix.arch) || matrix.os }}
+            rust-target: aarch64-unknown-linux-gnu
+    runs-on: ubuntu-latest
     environment: release
     needs: setup-environment
     env:
       VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
       - uses: actions/checkout@v4
+      - name: install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          if [ '${{ matrix.arch }}' = 'arm64' ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu pigz
+          else
+            sudo apt-get install -y pigz
+          fi
+        shell: bash
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: cargo build (release)
+        run: |
+          cargo build --release --bin ollama --target ${{ matrix.rust-target }}
+          echo "RUST_BINARY=target/${{ matrix.rust-target }}/release/ollama" >> "$GITHUB_ENV"
+        shell: bash
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
@@ -255,8 +275,12 @@ jobs:
           build-args: |
             VERSION=${{ env.VERSION }}
           outputs: type=local,dest=dist/${{ matrix.os }}-${{ matrix.arch }}
-          cache-from: type=registry,ref=${{ vars.DOCKER_REPO }}:latest
-          cache-to: type=inline
+          cache-from: type=gha,scope=linux-${{ matrix.arch }}-${{ matrix.target }}
+          cache-to: type=gha,scope=linux-${{ matrix.arch }}-${{ matrix.target }},mode=max
+      - name: Inject Rust binary into artifact
+        run: |
+          install -Dm755 "$RUST_BINARY" "dist/${{ matrix.os }}-${{ matrix.arch }}/bin/ollama"
+        shell: bash
       - run: |
           for COMPONENT in bin/* lib/ollama/*; do
             case "$COMPONENT" in
@@ -277,7 +301,8 @@ jobs:
           done
       - run: |
           for ARCHIVE in dist/${{ matrix.os }}-${{ matrix.arch }}/*.tar.in; do
-            tar c -C dist/${{ matrix.os }}-${{ matrix.arch }} -T $ARCHIVE --owner 0 --group 0 | pigz -9vc >$(basename ${ARCHIVE//.*/}.tgz);
+            out=$(basename "$ARCHIVE" .tar.in)
+            tar c -C dist/${{ matrix.os }}-${{ matrix.arch }} -T "$ARCHIVE" --owner 0 --group 0 | pigz -9vc >"${out}.tgz"
           done
       - uses: actions/upload-artifact@v4
         with:
@@ -303,9 +328,11 @@ jobs:
             suffix: '-rocm'
             build-args: |
               FLAVOR=rocm
-    runs-on: ${{ matrix.arch == 'arm64' && format('{0}-{1}', matrix.os, matrix.arch) || matrix.os }}
+    runs-on: ubuntu-latest
     environment: release
-    needs: setup-environment
+    needs:
+      - setup-environment
+      - linux-build
     env:
       VERSION: ${{ needs.setup-environment.outputs.VERSION }}
     steps:
@@ -324,8 +351,8 @@ jobs:
             VERSION=${{ env.VERSION }}
             ${{ matrix.build-args }}
           outputs: type=image,name=${{ vars.DOCKER_REPO }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=registry,ref=${{ vars.DOCKER_REPO }}:latest
-          cache-to: type=inline
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}${{ matrix.suffix }}
+          cache-to: type=gha,scope=docker-${{ matrix.arch }}${{ matrix.suffix }},mode=max
       - run: |
           mkdir -p ${{ matrix.os }}-${{ matrix.arch }}
           echo "${{ steps.build-push.outputs.digest }}" >${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.suffix }}.txt
