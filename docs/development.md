@@ -186,6 +186,11 @@ To run tests, use Cargo:
 cargo test --all
 ```
 
+On Linux, the GPU discovery tests in `rust/discover` rely on built-in shims that
+mock NVML, HIP, and Level Zero enumeration. They do not require setting any
+environment variables or installing GPU runtime libraries; the tests manage
+their overrides internally.
+
 Format and lint the workspace before submitting changes:
 
 ```shell

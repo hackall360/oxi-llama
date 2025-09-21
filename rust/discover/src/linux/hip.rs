@@ -1,4 +1,5 @@
-use crate::{path, GpuInfo, MemInfo};
+use super::{finalize_gpu_info, hip_override, GpuDeviceDetails};
+use crate::MemInfo;
 use libloading::Library;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int, c_uint};
@@ -24,7 +25,11 @@ type HipRuntimeGetVersion = unsafe extern "C" fn(*mut c_int) -> hipError_t;
 type HipDriverGetVersion = unsafe extern "C" fn(*mut c_int) -> hipError_t;
 type HipDeviceGetPCIBusId = unsafe extern "C" fn(*mut c_char, c_int, hipDevice_t) -> hipError_t;
 
-pub(super) fn collect_hip_info() -> Result<Vec<GpuInfo>, String> {
+pub(super) fn collect_hip_info() -> Result<Vec<crate::GpuInfo>, String> {
+    if let Some(overridden) = hip_override() {
+        return Ok(overridden);
+    }
+
     let library = match HipLibrary::load() {
         Ok(lib) => lib,
         Err(err) => return Err(err),
@@ -94,7 +99,7 @@ impl HipLibrary {
         })
     }
 
-    unsafe fn enumerate_devices(&self) -> Result<Vec<GpuInfo>, String> {
+    unsafe fn enumerate_devices(&self) -> Result<Vec<crate::GpuInfo>, String> {
         hip_check((self.hip_init)(0), "hipInit")?;
 
         let mut count: c_int = 0;
@@ -109,9 +114,8 @@ impl HipLibrary {
 
         let (driver_major, driver_minor) = self.driver_version();
         let variant = self.runtime_variant();
-        let dependency_paths = path::default_dependency_paths("rocm", &variant);
 
-        let mut gpus = Vec::with_capacity(count as usize);
+        let mut devices = Vec::with_capacity(count as usize);
 
         for ordinal in 0..count {
             let mut device: hipDevice_t = 0;
@@ -132,21 +136,18 @@ impl HipLibrary {
             };
             let compute = self.device_compute_capability(device).unwrap_or_default();
 
-            gpus.push(GpuInfo {
+            devices.push(GpuDeviceDetails {
                 mem_info,
-                library: "rocm".into(),
-                variant: variant.clone(),
-                dependency_path: dependency_paths.clone(),
                 id,
                 name,
                 compute,
                 driver_major,
                 driver_minor,
-                ..Default::default()
+                variant: variant.clone(),
             });
         }
 
-        Ok(gpus)
+        Ok(finalize_gpu_info("rocm", devices))
     }
 
     unsafe fn device_name(&self, device: hipDevice_t) -> Result<String, String> {
