@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
 
 use nvml_wrapper::{
     bitmasks::InitFlags, cuda_driver_version_major, cuda_driver_version_minor, error::NvmlError,
@@ -123,6 +124,10 @@ pub fn get_gpu_info() -> Vec<GpuInfo> {
 }
 
 fn collect_cuda_info(nvml: &Nvml) -> Result<Vec<GpuInfo>, NvmlError> {
+    if let Some(overridden) = cuda_override() {
+        return Ok(overridden);
+    }
+
     let device_count = nvml.device_count()?;
     if device_count == 0 {
         return Ok(Vec::new());
@@ -141,9 +146,8 @@ fn collect_cuda_info(nvml: &Nvml) -> Result<Vec<GpuInfo>, NvmlError> {
         }
         Err(_) => (0, 0, String::new()),
     };
-    let dependency_paths = path::default_dependency_paths("cuda", &variant);
 
-    let mut gpus = Vec::with_capacity(device_count as usize);
+    let mut devices = Vec::with_capacity(device_count as usize);
 
     for index in 0..device_count {
         let device = nvml.device_by_index(index)?;
@@ -162,21 +166,18 @@ fn collect_cuda_info(nvml: &Nvml) -> Result<Vec<GpuInfo>, NvmlError> {
             .map(|cap| format!("{}.{}", cap.major, cap.minor))
             .unwrap_or_default();
 
-        gpus.push(GpuInfo {
+        devices.push(GpuDeviceDetails {
             mem_info,
-            library: "cuda".into(),
-            variant: variant.clone(),
-            dependency_path: dependency_paths.clone(),
             id,
             name,
             compute,
             driver_major,
             driver_minor,
-            ..Default::default()
+            variant: variant.clone(),
         });
     }
 
-    Ok(gpus)
+    Ok(finalize_gpu_info("cuda", devices))
 }
 
 fn cpu_fallback() -> Vec<GpuInfo> {
@@ -190,9 +191,221 @@ fn cpu_fallback() -> Vec<GpuInfo> {
     }]
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct GpuDeviceDetails {
+    pub mem_info: MemInfo,
+    pub id: String,
+    pub name: String,
+    pub compute: String,
+    pub driver_major: i32,
+    pub driver_minor: i32,
+    pub variant: String,
+}
+
+pub(super) fn finalize_gpu_info(library: &str, devices: Vec<GpuDeviceDetails>) -> Vec<GpuInfo> {
+    devices
+        .into_iter()
+        .map(|details| GpuInfo {
+            mem_info: details.mem_info,
+            library: library.into(),
+            variant: details.variant.clone(),
+            dependency_path: path::default_dependency_paths(library, &details.variant),
+            id: details.id,
+            name: details.name,
+            compute: details.compute,
+            driver_major: details.driver_major,
+            driver_minor: details.driver_minor,
+            ..Default::default()
+        })
+        .collect()
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(super) enum OverrideKind {
+    Cuda,
+    Hip,
+    OneApi,
+}
+
+static CUDA_OVERRIDE: OnceLock<Mutex<Option<Vec<GpuInfo>>>> = OnceLock::new();
+static HIP_OVERRIDE: OnceLock<Mutex<Option<Vec<GpuInfo>>>> = OnceLock::new();
+static ONEAPI_OVERRIDE: OnceLock<Mutex<Option<Vec<GpuInfo>>>> = OnceLock::new();
+
+fn override_storage(kind: OverrideKind) -> &'static Mutex<Option<Vec<GpuInfo>>> {
+    match kind {
+        OverrideKind::Cuda => CUDA_OVERRIDE.get_or_init(|| Mutex::new(None)),
+        OverrideKind::Hip => HIP_OVERRIDE.get_or_init(|| Mutex::new(None)),
+        OverrideKind::OneApi => ONEAPI_OVERRIDE.get_or_init(|| Mutex::new(None)),
+    }
+}
+
+pub(super) fn set_override(
+    kind: OverrideKind,
+    value: Option<Vec<GpuInfo>>,
+) -> Option<Vec<GpuInfo>> {
+    let storage = override_storage(kind);
+    let mut guard = storage.lock().unwrap();
+    let previous = guard.clone();
+    *guard = value;
+    previous
+}
+
+fn current_override(kind: OverrideKind) -> Option<Vec<GpuInfo>> {
+    let storage = override_storage(kind);
+    storage.lock().unwrap().clone()
+}
+
+pub(super) fn cuda_override() -> Option<Vec<GpuInfo>> {
+    current_override(OverrideKind::Cuda)
+}
+
+#[cfg(feature = "linux-rocm")]
+pub(super) fn hip_override() -> Option<Vec<GpuInfo>> {
+    current_override(OverrideKind::Hip)
+}
+
+pub(super) fn oneapi_override() -> Option<Vec<GpuInfo>> {
+    current_override(OverrideKind::OneApi)
+}
+
+pub mod test_support {
+    use super::{finalize_gpu_info, set_override, GpuDeviceDetails, MemInfo, OverrideKind};
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct MockDevice {
+        pub id: String,
+        pub name: String,
+        pub mem_info: MemInfo,
+        pub compute: String,
+        pub driver_major: i32,
+        pub driver_minor: i32,
+        pub variant: String,
+    }
+
+    impl MockDevice {
+        #[allow(clippy::too_many_arguments)]
+        pub fn new(
+            id: impl Into<String>,
+            name: impl Into<String>,
+            mem_info: MemInfo,
+            compute: impl Into<String>,
+            driver_major: i32,
+            driver_minor: i32,
+            variant: impl Into<String>,
+        ) -> Self {
+            Self {
+                id: id.into(),
+                name: name.into(),
+                mem_info,
+                compute: compute.into(),
+                driver_major,
+                driver_minor,
+                variant: variant.into(),
+            }
+        }
+    }
+
+    fn to_details(device: MockDevice) -> GpuDeviceDetails {
+        GpuDeviceDetails {
+            mem_info: device.mem_info,
+            id: device.id,
+            name: device.name,
+            compute: device.compute,
+            driver_major: device.driver_major,
+            driver_minor: device.driver_minor,
+            variant: device.variant,
+        }
+    }
+
+    pub fn build_gpu_info(library: &str, devices: Vec<MockDevice>) -> Vec<crate::GpuInfo> {
+        finalize_gpu_info(library, devices.into_iter().map(to_details).collect())
+    }
+
+    pub fn build_cuda_info(
+        devices: Vec<MockDevice>,
+        driver_major: i32,
+        driver_minor: i32,
+    ) -> Vec<crate::GpuInfo> {
+        let variant = if driver_major > 0 {
+            format!("v{}", driver_major)
+        } else {
+            String::new()
+        };
+        let devices = devices
+            .into_iter()
+            .map(|mut device| {
+                device.driver_major = driver_major;
+                device.driver_minor = driver_minor;
+                device.variant = variant.clone();
+                device
+            })
+            .collect();
+        build_gpu_info("cuda", devices)
+    }
+
+    pub fn build_rocm_info(
+        mut devices: Vec<MockDevice>,
+        driver_major: i32,
+        driver_minor: i32,
+        runtime_major: Option<i32>,
+    ) -> Vec<crate::GpuInfo> {
+        let variant = runtime_major
+            .filter(|major| *major > 0)
+            .map(|major| format!("v{}", major))
+            .unwrap_or_default();
+        for device in &mut devices {
+            device.driver_major = driver_major;
+            device.driver_minor = driver_minor;
+            device.variant = variant.clone();
+        }
+        build_gpu_info("rocm", devices)
+    }
+
+    pub fn build_oneapi_info(devices: Vec<MockDevice>) -> Vec<crate::GpuInfo> {
+        build_gpu_info("oneapi", devices)
+    }
+
+    #[derive(Debug)]
+    pub struct OverrideGuard {
+        kind: OverrideKind,
+        previous: Option<Vec<crate::GpuInfo>>,
+    }
+
+    impl OverrideGuard {
+        fn new(kind: OverrideKind, value: Option<Vec<crate::GpuInfo>>) -> Self {
+            let previous = set_override(kind, value);
+            Self { kind, previous }
+        }
+    }
+
+    impl Drop for OverrideGuard {
+        fn drop(&mut self) {
+            let _ = set_override(self.kind, self.previous.clone());
+        }
+    }
+
+    pub fn override_cuda(value: Option<Vec<crate::GpuInfo>>) -> OverrideGuard {
+        OverrideGuard::new(OverrideKind::Cuda, value)
+    }
+
+    pub fn override_hip(value: Option<Vec<crate::GpuInfo>>) -> OverrideGuard {
+        OverrideGuard::new(OverrideKind::Hip, value)
+    }
+
+    pub fn override_oneapi(value: Option<Vec<crate::GpuInfo>>) -> OverrideGuard {
+        OverrideGuard::new(OverrideKind::OneApi, value)
+    }
+
+    pub fn clear_overrides() {
+        let _ = set_override(OverrideKind::Cuda, None);
+        let _ = set_override(OverrideKind::Hip, None);
+        let _ = set_override(OverrideKind::OneApi, None);
+    }
+}
+
 mod oneapi {
-    use super::oneapi_bindings as ze;
-    use crate::{path, GpuInfo, MemInfo};
+    use super::{finalize_gpu_info, oneapi_bindings as ze, oneapi_override, GpuDeviceDetails};
+    use crate::MemInfo;
     use libloading::Library;
     use std::ffi::CStr;
     use std::os::raw::{c_char, c_void};
@@ -225,7 +438,11 @@ mod oneapi {
         *mut ze::ze_driver_properties_t,
     ) -> ze::ze_result_t;
 
-    pub(super) fn collect_oneapi_info() -> Result<Vec<GpuInfo>, String> {
+    pub(super) fn collect_oneapi_info() -> Result<Vec<crate::GpuInfo>, String> {
+        if let Some(overridden) = oneapi_override() {
+            return Ok(overridden);
+        }
+
         let library = OneApiLibrary::load()?;
         unsafe { library.enumerate_devices() }
     }
@@ -278,7 +495,7 @@ mod oneapi {
             })
         }
 
-        unsafe fn enumerate_devices(&self) -> Result<Vec<GpuInfo>, String> {
+        unsafe fn enumerate_devices(&self) -> Result<Vec<crate::GpuInfo>, String> {
             ze_check((self.zes_init)(0), "zesInit")?;
 
             let mut driver_count: u32 = 0;
@@ -345,33 +562,29 @@ mod oneapi {
                         driver_minor = minor;
                     }
 
+                    let id = properties
+                        .uuid
+                        .unwrap_or_else(|| format!("oneapi-{}-{}", driver_index, device_index));
+
                     let variant = if driver_major > 0 {
                         format!("v{}", driver_major)
                     } else {
                         String::new()
                     };
-                    let dependency_paths = path::default_dependency_paths("oneapi", &variant);
 
-                    let id = properties
-                        .uuid
-                        .unwrap_or_else(|| format!("oneapi-{}-{}", driver_index, device_index));
-
-                    gpus.push(GpuInfo {
+                    gpus.push(GpuDeviceDetails {
                         mem_info,
-                        library: "oneapi".into(),
-                        variant,
-                        dependency_path: dependency_paths,
                         id,
                         name: properties.name,
                         compute: String::new(),
                         driver_major,
                         driver_minor,
-                        ..Default::default()
+                        variant,
                     });
                 }
             }
 
-            Ok(gpus)
+            Ok(finalize_gpu_info("oneapi", gpus))
         }
 
         unsafe fn driver_details(
@@ -518,7 +731,7 @@ mod oneapi {
         }
     }
 
-    fn parse_driver_version(version: &str) -> Option<(i32, i32)> {
+    pub(super) fn parse_driver_version(version: &str) -> Option<(i32, i32)> {
         let mut parts = version
             .split(|c: char| !c.is_ascii_digit())
             .filter(|s| !s.is_empty());
