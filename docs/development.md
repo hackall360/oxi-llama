@@ -191,6 +191,13 @@ mock NVML, HIP, and Level Zero enumeration. They do not require setting any
 environment variables or installing GPU runtime libraries; the tests manage
 their overrides internally.
 
+### GPU discovery implementation
+
+The Rust crate in `rust/discover` is the single source of truth for GPU
+enumeration logic. Historical C and Objective-C helpers have been removed in
+favour of the Rust implementation; new discovery work should be contributed to
+that crate and covered by its test suite.
+
 Format and lint the workspace before submitting changes:
 
 ```shell
