@@ -154,21 +154,42 @@ pub fn get_cpu_mem() -> std::io::Result<MemInfo> {
     })
 }
 
+pub struct GpuLoaders<'a> {
+    cuda: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+    hip: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+    oneapi: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+}
+
+impl<'a> GpuLoaders<'a> {
+    pub fn new(
+        cuda: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+        hip: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+        oneapi: &'a dyn Fn() -> Result<Vec<GpuInfo>, String>,
+    ) -> Self {
+        Self { cuda, hip, oneapi }
+    }
+}
+
+fn default_loaders() -> GpuLoaders<'static> {
+    GpuLoaders::new(&load_cuda, &hip::collect_hip_info, &oneapi::collect_oneapi_info)
+}
+
 pub fn get_gpu_info() -> Vec<GpuInfo> {
+    get_gpu_info_with(&default_loaders())
+}
+
+pub fn get_gpu_info_with(loaders: &GpuLoaders) -> Vec<GpuInfo> {
     let mut gpus = Vec::new();
 
-    if let Ok(nvml) = Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH) {
-        if let Ok(mut cuda_gpus) = collect_cuda_info(&nvml) {
-            gpus.append(&mut cuda_gpus);
-        }
-        let _ = nvml.shutdown();
+    if let Ok(mut cuda_gpus) = (loaders.cuda)() {
+        gpus.append(&mut cuda_gpus);
     }
 
-    if let Ok(mut hip_gpus) = hip::collect_hip_info() {
+    if let Ok(mut hip_gpus) = (loaders.hip)() {
         gpus.append(&mut hip_gpus);
     }
 
-    if let Ok(mut oneapi_gpus) = oneapi::collect_oneapi_info() {
+    if let Ok(mut oneapi_gpus) = (loaders.oneapi)() {
         gpus.append(&mut oneapi_gpus);
     }
 
@@ -177,6 +198,14 @@ pub fn get_gpu_info() -> Vec<GpuInfo> {
     } else {
         gpus
     }
+}
+
+fn load_cuda() -> Result<Vec<GpuInfo>, String> {
+    let nvml = Nvml::init_with_flags(InitFlags::NO_GPUS | InitFlags::NO_ATTACH)
+        .map_err(|err| err.to_string())?;
+    let result = collect_cuda_info(&nvml).map_err(|err| err.to_string());
+    let _ = nvml.shutdown();
+    result
 }
 
 fn collect_cuda_info(nvml: &Nvml) -> Result<Vec<GpuInfo>, NvmlError> {
