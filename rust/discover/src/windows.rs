@@ -171,7 +171,11 @@ impl<'a> GpuLoaders<'a> {
 }
 
 fn default_loaders() -> GpuLoaders<'static> {
-    GpuLoaders::new(&load_cuda, &hip::collect_hip_info, &oneapi::collect_oneapi_info)
+    GpuLoaders::new(
+        &load_cuda,
+        &hip::collect_hip_info,
+        &oneapi::collect_oneapi_info,
+    )
 }
 
 pub fn get_gpu_info() -> Vec<GpuInfo> {

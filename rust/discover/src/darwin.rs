@@ -94,3 +94,9 @@ fn cpu_fallback_with_mem(mem: MemInfo) -> Vec<GpuInfo> {
         ..Default::default()
     }]
 }
+
+/// Expose Metal device enumeration for integration tests.
+#[cfg(target_os = "macos")]
+pub fn collect_metal_devices_for_tests(dependency_paths: &[String]) -> Vec<GpuInfo> {
+    collect_metal_devices(dependency_paths)
+}
