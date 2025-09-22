@@ -23,7 +23,6 @@ function(ggml_add_cpu_backend_variant_impl tag_name)
 
     list (APPEND GGML_CPU_SOURCES
         ggml-cpu/ggml-cpu.c
-        ggml-cpu/ggml-cpu.cpp
         ggml-cpu/repack.cpp
         ggml-cpu/repack.h
         ggml-cpu/hbm.cpp
@@ -39,12 +38,9 @@ function(ggml_add_cpu_backend_variant_impl tag_name)
         ggml-cpu/ggml-cpu-impl.h
         ggml-cpu/common.h
         ggml-cpu/binary-ops.h
-        ggml-cpu/binary-ops.cpp
         ggml-cpu/unary-ops.h
-        ggml-cpu/unary-ops.cpp
         ggml-cpu/simd-mappings.h
         ggml-cpu/vec.h
-        ggml-cpu/vec.cpp
         ggml-cpu/ops.h
         ggml-cpu/ops.cpp
         )
