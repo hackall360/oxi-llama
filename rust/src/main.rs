@@ -1,6 +1,6 @@
-use oxi_rust::call_c;
+use oxi_rust::helper_value;
 
 fn main() {
-    let val = call_c();
-    println!("Hello from Rust, C says {val}!");
+    let val = helper_value();
+    println!("Hello from Rust, helper says {val}!");
 }

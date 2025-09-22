@@ -1,28 +1,19 @@
-use std::ffi::CString;
-
-// Bindings to the C helper are generated at build time by bindgen and included
-// here. This keeps the Rust declarations in sync with the C header.
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+use schema::json_schema_str_to_grammar;
 
 /// Convert a JSON schema into a grammar representation used by llama.cpp.
 ///
-/// Returns `None` if the provided schema is invalid.
-pub fn schema_to_grammar_safe(schema: &str) -> Option<Vec<u8>> {
-    let c_schema = CString::new(schema).ok()?;
-    // similar heuristic to llama.go
-    let max_len = std::cmp::max(32 * 1024, std::cmp::min(1024 * 1024, schema.len() * 4));
-    let mut buf = vec![0u8; max_len];
-    let n = unsafe {
-        schema_to_grammar(
-            c_schema.as_ptr(),
-            buf.as_mut_ptr() as *mut ::std::os::raw::c_char,
-            max_len,
-        )
-    };
-    if n <= 0 {
-        None
-    } else {
-        buf.truncate(n as usize);
-        Some(buf)
-    }
+/// Set `force_gbnf` to `true` to always emit a GBNF grammar even when the
+/// llguidance format would be supported by the underlying runtime.
+pub fn schema_to_grammar(schema: &str, force_gbnf: bool) -> Result<String, SchemaError> {
+    json_schema_str_to_grammar(schema, force_gbnf)
 }
+
+/// Convenience wrapper that always emits a GBNF grammar and returns the
+/// encoded bytes on success.
+pub fn schema_to_grammar_safe(schema: &str) -> Option<Vec<u8>> {
+    schema_to_grammar(schema, true).map(|g| g.into_bytes()).ok()
+}
+
+pub use schema::CommonGrammarBuilder;
+pub use schema::CommonGrammarOptions;
+pub use schema::SchemaError;

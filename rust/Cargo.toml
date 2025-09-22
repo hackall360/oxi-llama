@@ -9,9 +9,6 @@ readline = { workspace = true }
 kvcache = { workspace = true }
 logutil = { workspace = true }
 
-[build-dependencies]
-cc = "1.0"
-
 [dev-dependencies]
 anyhow = "1.0"
 base64 = "0.22"

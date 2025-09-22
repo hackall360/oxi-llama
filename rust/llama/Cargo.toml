@@ -5,8 +5,5 @@ edition = "2021"
 
 [dependencies]
 kvcache = { workspace = true }
-
-[build-dependencies]
-cc = "1.0"
-bindgen = "0.69"
+schema = { workspace = true }
 

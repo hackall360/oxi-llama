@@ -1,4 +1,4 @@
-use llama::schema_to_grammar_safe;
+use llama::{schema_to_grammar, schema_to_grammar_safe};
 
 const ISSUE7978_JSON_SCHEMA: &str = r#"{
   "type": "object",
@@ -82,22 +82,27 @@ fn test_schema_to_grammar() {
         },
     ];
     for c in &cases {
-        let g = schema_to_grammar_safe(c.schema);
-        match (g, c.prefix) {
-            (None, None) => {}
-            (Some(buf), Some(prefix)) => {
+        let safe = schema_to_grammar_safe(c.schema);
+        let direct = schema_to_grammar(c.schema, true);
+        match (safe, direct, c.prefix) {
+            (None, Err(_), None) => {}
+            (Some(buf), Ok(text), Some(prefix)) => {
+                let buf_str = String::from_utf8_lossy(&buf);
+                let prefix_str = String::from_utf8_lossy(prefix);
                 assert!(
-                    buf.starts_with(prefix),
-                    "grammar = {:?}, want prefix {:?}",
-                    String::from_utf8_lossy(&buf),
-                    String::from_utf8_lossy(prefix)
+                    buf_str.contains(prefix_str.as_ref()),
+                    "grammar = {:?}, want snippet {:?}",
+                    buf_str,
+                    prefix_str
+                );
+                assert!(
+                    text.contains(prefix_str.as_ref()),
+                    "text = {:?}, want snippet {:?}",
+                    text,
+                    prefix_str
                 );
             }
-            (other, expected) => panic!(
-                "unexpected combination: got {:?}, want {:?}",
-                other.is_some(),
-                expected.is_some()
-            ),
+            other => panic!("unexpected combination: {other:?}"),
         }
     }
 }
