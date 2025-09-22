@@ -2527,9 +2527,8 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 name = "llama"
 version = "0.1.0"
 dependencies = [
- "bindgen",
- "cc",
  "kvcache",
+ "schema",
 ]
 
 [[package]]
@@ -3160,7 +3159,6 @@ dependencies = [
  "anyhow",
  "api",
  "base64 0.22.1",
- "cc",
  "envconfig",
  "kvcache",
  "logutil",
@@ -3946,6 +3944,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "schema"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "once_cell",
+ "regex",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4066,6 +4075,7 @@ version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "402a6f66d8c709116cf22f558eab210f5a50187f702eb4d7e5ef38d9a7f1c79c"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "ryu",
