@@ -19,6 +19,7 @@ members = [
     "rust/envconfig",
     "rust/fs",
     "rust/ggml-core",
+    "rust/ggml-cpu",
     "rust/harmony",
     "rust/kvcache",
     "rust/llama",
@@ -56,6 +57,7 @@ logutil = { path = "rust/logutil" }
 model = { path = "rust/model" }
 ml = { path = "rust/ml" }
 ggml-core = { path = "rust/ggml-core" }
+ggml-cpu = { path = "rust/ggml-cpu" }
 ollama_types = { path = "rust/ollama_types" }
 parser = { path = "rust/parser" }
 progress = { path = "rust/progress" }
