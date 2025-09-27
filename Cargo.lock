@@ -1642,6 +1642,8 @@ version = "0.1.0"
 dependencies = [
  "approx",
  "bytemuck",
+ "cc",
+ "half",
  "smallvec",
  "thiserror 1.0.69",
 ]
